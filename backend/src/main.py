@@ -33,7 +33,7 @@ app.include_router(api_router, prefix="/api")
 
 @app.get("/")
 async def root():
-    return {"message": "🚀 Literature Review Assistant Backend is running!"}
+    return {"message": "Literature Review Assistant Backend is running!"}
 
 if __name__ == "__main__":
     import uvicorn

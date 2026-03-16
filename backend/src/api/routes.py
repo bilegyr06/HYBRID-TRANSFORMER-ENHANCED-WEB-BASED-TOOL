@@ -1,5 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException
-from pathlib import Path
+from fastapi import APIRouter, UploadFile, HTTPException
 import shutil               # now properly imported — we use it below
 import pdfplumber
 
@@ -9,7 +8,7 @@ router = APIRouter(tags=["Upload"])
 
 
 @router.post("/upload")
-async def upload_documents(files: list[UploadFile] = File(...)):
+async def upload_documents(files: list[UploadFile]):
     """
     Accepts one or multiple files via drag-and-drop.
     Supported formats: .pdf, .txt
@@ -32,7 +31,7 @@ async def upload_documents(files: list[UploadFile] = File(...)):
         with file_path.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)           # ← here is where shutil is used
 
-        # Extract preview content
+        # Extract preview — improved encoding handling
         content_preview = ""
         try:
             if filename_lower.endswith(".pdf"):
@@ -40,9 +39,8 @@ async def upload_documents(files: list[UploadFile] = File(...)):
                     pages_text = [page.extract_text() or "" for page in pdf.pages]
                     content_preview = "\n".join(pages_text)
             else:  # .txt
-                content_preview = file_path.read_text(encoding="utf-8")
+                content_preview = file_path.read_text(encoding="utf-8", errors="ignore")
         except Exception as e:
-            # Don't crash the whole upload if one file fails extraction
             content_preview = f"[Extraction failed: {str(e)}]"
 
         # Prepare response item
