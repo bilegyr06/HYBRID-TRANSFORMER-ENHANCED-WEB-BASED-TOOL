@@ -1,12 +1,10 @@
-# OG textrank
 import nltk
 from nltk.tokenize import sent_tokenize
 import networkx as nx
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from typing import List, Dict, Any
 import re
-
 
 def _ensure_nltk_punkt():
     """
@@ -24,18 +22,19 @@ _ensure_nltk_punkt()
 class TextRankService:
     """
     A service for performing extractive summarization using the TextRank algorithm.
-    This implementation uses TF-IDF for sentence vectorization and PageRank for scoring.
+    This implementation uses Semantic Embeddings for sentence vectorization and PageRank for scoring.
     """
 
-    def __init__(self, top_k: int = 10):
+    def __init__(self, top_k: int = 10, model_name: str = 'all-MiniLM-L6-v2'):
         """
         Initializes the TextRankService.
 
         Args:
             top_k (int): The number of top-ranked sentences to return.
+            model_name (str): The name of the SentenceTransformer model to use.
         """
         self.top_k = top_k
-        self.vectorizer = TfidfVectorizer(stop_words='english')
+        self.model = SentenceTransformer(model_name)
 
     def _preprocess_and_tokenize(self, text: str) -> List[str]:
         """Cleans text and tokenizes it into sentences."""
@@ -45,8 +44,8 @@ class TextRankService:
 
     def _build_similarity_matrix(self, sentences: List[str]):
         """Builds a cosine similarity matrix from a list of sentences."""
-        tfidf_matrix = self.vectorizer.fit_transform(sentences)
-        return cosine_similarity(tfidf_matrix)
+        embeddings = self.model.encode(sentences)
+        return cosine_similarity(embeddings)
 
     def _calculate_sentence_ranks(self, similarity_matrix) -> Dict[int, float]:
         """Calculates sentence ranks using PageRank on the similarity graph."""
@@ -79,12 +78,7 @@ class TextRankService:
                 for i, sent in enumerate(sentences)
             ]
 
-        try:
-            similarity_matrix = self._build_similarity_matrix(sentences)
-        except ValueError:
-            # This can happen if all sentences are empty or only contain stopwords,
-            # resulting in an empty vocabulary for the TfidfVectorizer.
-            return [{"sentence": "Text contains no meaningful content for summarization.", "score": 0.0, "rank": 1}]
+        similarity_matrix = self._build_similarity_matrix(sentences)
 
         scores = self._calculate_sentence_ranks(similarity_matrix)
 

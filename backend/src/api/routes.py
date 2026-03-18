@@ -4,7 +4,7 @@ import pdfplumber
 from typing import List
 
 from src.core.config import settings
-from src.services.text_rank_service import TextRankService
+from src.services.Text_rank_with_sentEmbed import TextRankService
 
 router = APIRouter(tags=["Upload & Process"])
 
@@ -57,7 +57,7 @@ async def upload_documents(
 
 @router.post("/process")
 async def process_documents():
-    """Run TextRank on ALL files currently in uploads folder."""
+    """Run TextRank using sentembed on ALL files currently in uploads folder."""
     upload_dir = settings.UPLOAD_DIR
     results = []
 
