@@ -57,27 +57,41 @@ async def upload_documents(
 
 @router.post("/process")
 async def process_documents():
-    """Run TextRank using sentembed on ALL files currently in uploads folder."""
+    """Run full hybrid pipeline: TextRank extractive → BART abstractive."""
+    from src.services.summarizer_service import SummarizerService
+    
+    summarizer = SummarizerService()  # loads model once per call for now
     upload_dir = settings.UPLOAD_DIR
     results = []
 
     for file_path in upload_dir.glob("*.*"):
+        if file_path.name in ("requirements.txt",):  # skip junk
+            continue
+        
         if file_path.suffix.lower() not in ('.pdf', '.txt'):
             continue
         
         try:
+            # Extract full text
             if file_path.suffix.lower() == '.pdf':
                 with pdfplumber.open(file_path) as pdf:
                     text = "\n".join(page.extract_text() or "" for page in pdf.pages)
             else:
                 text = file_path.read_text(encoding="utf-8", errors="ignore")
             
+            # Extractive step
             key_sentences = text_rank.extract_key_sentences(text)
+            
+            # Abstractive step
+            abstractive_summary = summarizer.generate_summary(key_sentences)
             
             results.append({
                 "filename": file_path.name,
-                "total_sentences": len(key_sentences),
-                "key_sentences": key_sentences
+                "extractive": {
+                    "key_sentences": key_sentences,
+                    "total_extracted": len(key_sentences)
+                },
+                "abstractive_summary": abstractive_summary
             })
         except Exception as e:
             results.append({"filename": file_path.name, "error": str(e)})
