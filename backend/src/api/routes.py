@@ -4,7 +4,7 @@ import pdfplumber
 from typing import List
 
 from src.core.config import settings
-from src.services.Text_rank_with_sentEmbed import TextRankService
+from src.services.text_rank_service_copy import TextRankService
 from src.services.summarizer_service import SummarizerService
 
 
