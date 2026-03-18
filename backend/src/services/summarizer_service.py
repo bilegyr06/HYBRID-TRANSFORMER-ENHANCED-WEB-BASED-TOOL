@@ -1,19 +1,24 @@
 from transformers import pipeline
 from typing import List, Dict
+import gc
 import torch
 
+_summarizer_instance = None
+
 class SummarizerService:
-    """Abstractive summarization using BART (zero-shot first, LoRA later)."""
-    
-    def __init__(self, model_name: str = "sshleifer/distilbart-cnn-12-6"):
-        # Use distilbart for speed + lower VRAM
-        device = 0 if torch.cuda.is_available() else -1  # 0 = GPU, -1 = CPU
-        self.summarizer = pipeline(
-            "summarization",
-            model=model_name,
-            device=device,
-            dtype=torch.float16 if device == 0 else None
-        )
+    def __init__(self):
+        global _summarizer_instance
+        if _summarizer_instance is None:
+            device = 0 if torch.cuda.is_available() else -1
+            model_name = "sshleifer/distilbart-cnn-12-6"
+            _summarizer_instance = pipeline(
+                "summarization",
+                model=model_name,
+                device=device,
+                torch_dtype=torch.float16 if device == 0 else None
+            )
+            print(f"Loaded summarizer on device: {'GPU' if device == 0 else 'CPU'}")
+        self.summarizer = _summarizer_instance
     
     def generate_summary(self, key_sentences: List[Dict], max_length: int = 200) -> str:
         """Generate abstractive summary from ranked sentences."""

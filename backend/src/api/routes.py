@@ -5,6 +5,10 @@ from typing import List
 
 from src.core.config import settings
 from src.services.Text_rank_with_sentEmbed import TextRankService
+from src.services.summarizer_service import SummarizerService
+
+
+summarizer = SummarizerService()  # loads once when module imports
 
 router = APIRouter(tags=["Upload & Process"])
 
@@ -59,8 +63,7 @@ async def upload_documents(
 async def process_documents():
     """Run full hybrid pipeline: TextRank extractive → BART abstractive."""
     from src.services.summarizer_service import SummarizerService
-    
-    summarizer = SummarizerService()  # loads model once per call for now
+
     upload_dir = settings.UPLOAD_DIR
     results = []
 
