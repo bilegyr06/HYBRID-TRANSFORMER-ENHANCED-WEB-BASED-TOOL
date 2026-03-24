@@ -2,18 +2,20 @@ from fastapi import APIRouter, UploadFile, HTTPException, File
 import shutil               # now properly imported — we use it below
 import pdfplumber
 from typing import List
+from pydantic import BaseModel
 
 from src.core.config import settings
 from src.services.text_rank_service_copy import TextRankService
 from src.services.summarizer_service import SummarizerService
 
-
+text_rank = TextRankService(top_k=8)
 summarizer = SummarizerService()  # loads once when module imports
 
+class ProcessRequest(BaseModel):
+    filenames: List[str] = []
+
+
 router = APIRouter(tags=["Upload & Process"])
-
-text_rank = TextRankService(top_k=8)
-
 
 @router.post("/upload")
 async def upload_documents(
@@ -60,18 +62,29 @@ async def upload_documents(
 
 
 @router.post("/process")
-async def process_documents():
+async def process_documents(request: ProcessRequest):
     """Run full hybrid pipeline: TextRank extractive → BART abstractive."""
-    from src.services.summarizer_service import SummarizerService
 
     upload_dir = settings.UPLOAD_DIR
     results = []
 
-    for file_path in upload_dir.glob("*.*"):
+    # Determine files to process
+    if request.filenames:
+        file_paths = [upload_dir / fname for fname in request.filenames]
+    else:
+        file_paths = list(upload_dir.glob("*.*"))
+
+    for file_path in file_paths:
+        if not file_path.exists():
+            results.append({"filename": file_path.name, "error": "File not found"})
+            continue
+
         if file_path.name in ("requirements.txt",):  # skip junk
             continue
         
         if file_path.suffix.lower() not in ('.pdf', '.txt'):
+            if request.filenames:
+                results.append({"filename": file_path.name, "error": "Unsupported file type"})
             continue
         
         try:
