@@ -1,0 +1,15 @@
+This study explores the application of the TextRank algorithm for automatic text summarization in a backend service environment. 
+TextRank is a graph-based ranking model that identifies the most important sentences in a document using structural relationships rather than supervised learning. 
+In this work, sentences are represented as nodes in a graph, while edges are constructed using cosine similarity derived from TF-IDF vectorization. 
+The resulting similarity matrix is used to build a weighted graph, enabling the application of the PageRank algorithm to compute sentence importance scores. 
+To improve summary quality, additional heuristics such as position bias and sentence length normalization are incorporated. 
+These adjustments aim to prioritize informative sentences that typically appear earlier in structured texts such as academic papers. 
+A redundancy filtering mechanism is also introduced to ensure diversity in the selected sentences by removing highly similar candidates. 
+The system is designed as a stateless service, making it suitable for integration into a FastAPI-based backend. 
+Special attention is given to thread safety by avoiding shared mutable objects during vectorization. 
+Performance considerations such as limiting maximum sentence count and optimizing similarity thresholds are included to ensure scalability. 
+The service demonstrates strong performance in extracting meaningful summaries from medium-length documents. 
+Experimental observations show that combining TF-IDF similarity with graph-based ranking produces coherent and relevant summaries without the need for labeled data. 
+The modular design allows for easy extension, including the integration of embedding-based similarity methods. 
+Overall, the approach provides a practical and efficient solution for unsupervised text summarization in real-world applications. 
+Future work may focus on improving semantic understanding through deep learning-based representations.
