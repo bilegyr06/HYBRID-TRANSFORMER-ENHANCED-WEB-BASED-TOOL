@@ -1,5 +1,6 @@
 // src/pages/UploadPage.tsx
 import { useState } from 'react';
+import type { ProcessResponse } from '../types';
 
 interface UploadPageProps {
   onProcessComplete: (data: any) => void;   // We'll improve the type later
@@ -44,44 +45,46 @@ export default function UploadPage({ onProcessComplete }: UploadPageProps) {
 
     setIsProcessing(true);
 
-    // TODO: Connect to FastAPI backend here later
-    // For now, we'll simulate a response so the ResultsPage can show
-    setTimeout(() => {
-      const mockData = {
-        status: "success",
-        processed_files: files.length,
-        results: files.map((file) => ({
-          filename: file.name,
-          extractive: {
-            key_sentences: [
-              {
-                rank: 1,
-                sentence: "This research provides a comprehensive overview of transformer-based architectures in natural language processing.",
-                score: 0.95,
-                original_position: 0
-              },
-              {
-                rank: 2,
-                sentence: "The hybrid approach combining TextRank and BART offers significant improvements in summary quality.",
-                score: 0.87,
-                original_position: 5
-              },
-              {
-                rank: 3,
-                sentence: "Key findings indicate that attention mechanisms are crucial for understanding complex research papers.",
-                score: 0.82,
-                original_position: 12
-              }
-            ],
-            total_extracted: 3
-          },
-          abstractive_summary: "This paper discusses the application of transformer-based models in automated literature review systems. The study highlights how combining extractive methods (TextRank) with abstractive summarization (BART) creates a robust hybrid system for processing academic papers. The research demonstrates that attention mechanisms and pre-trained language models significantly improve both the accuracy and coherence of generated summaries, making them suitable for large-scale systematic reviews."
-        }))
-      };
+    try {
+      const formData = new FormData();
+      files.forEach((file) => {
+        formData.append("files", file);
+      });
 
-      onProcessComplete(mockData);
+      // STEP 1: Upload files
+      const uploadResponse = await fetch("http://localhost:8000/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error("Upload failed");
+      }
+
+      // const uploadData = await uploadResponse.json();
+
+      // STEP 2: Process the uploaded files
+      const processResponse = await fetch("http://localhost:8000/api/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filenames: files.map(f => f.name)   // send the filenames to process
+        }),
+      });
+
+      if (!processResponse.ok) {
+        throw new Error("Processing failed");
+      }
+
+      const realData: ProcessResponse = await processResponse.json();
+
+      onProcessComplete(realData);
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Could not connect to backend. Check console for details.");
+    } finally {
       setIsProcessing(false);
-    }, 1500);
+    }
   };
 
   return (

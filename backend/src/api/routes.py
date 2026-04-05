@@ -5,7 +5,7 @@ from typing import List
 from pydantic import BaseModel
 
 from src.core.config import settings
-from src.services.text_rank_service_copy import TextRankService
+from src.services.text_rank_service_improved import TextRankService
 from src.services.summarizer_service import SummarizerService
 
 text_rank = TextRankService(top_k=8)

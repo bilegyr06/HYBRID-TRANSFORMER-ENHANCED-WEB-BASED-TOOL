@@ -1,5 +1,0 @@
-Climate change poses significant challenges to global food security, yet many current models fail to capture the complexity of regional adaptation strategies.
-This paper introduces a multi‑agent simulation framework that integrates economic, ecological, and social variables to predict agricultural resilience under varying climate scenarios.
-Our experiments reveal that mid‑sized farming communities adopting cooperative resource‑sharing outperform both small independent farms and large industrial operations in long‑term sustainability.
-Interestingly, the results also show that technological innovation alone is insufficient without parallel investment in social infrastructure.
-We conclude by highlighting policy implications for governments seeking to balance innovation funding with community‑level support programs.
