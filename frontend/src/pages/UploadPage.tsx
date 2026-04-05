@@ -202,7 +202,7 @@ export default function UploadPage({ onProcessComplete }: UploadPageProps) {
             </div>
 
             <div className="mt-12 text-xs text-gray-500 border-t border-gray-800 pt-6">
-              Deji Ayodeji • Covenant University FYP 2025/2026
+              Ayodeji Ajayi • Covenant University FYP 2025/2026
             </div>
           </div>
         </div>

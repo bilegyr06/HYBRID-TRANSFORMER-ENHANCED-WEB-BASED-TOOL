@@ -1,0 +1,7 @@
+The rapid growth of scientific literature has made manual review increasingly difficult for researchers. 
+Traditional methods rely on reading abstracts and full texts, which is time-consuming and prone to bias. 
+Recent advances in natural language processing offer automated solutions through extractive and abstractive summarization. 
+Extractive techniques like TextRank select important sentences based on graph centrality. 
+Abstractive models such as BART generate novel summaries but risk hallucinations without grounding. 
+This work proposes a hybrid approach combining TextRank for faithful extraction with fine-tuned transformers for coherent multi-document abstraction. 
+Experiments on arXiv abstracts show improved ROUGE scores and theme coverage compared to single-method baselines.

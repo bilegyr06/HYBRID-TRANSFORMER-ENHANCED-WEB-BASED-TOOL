@@ -1,113 +1,119 @@
-import { useCallback } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Copy } from 'lucide-react';
+// frontend/src/pages/ResultsPage.tsx
+import { useState } from 'react';
 import type { ProcessResponse } from '../types';
 
-interface Props {
+interface ResultsPageProps {
   data: ProcessResponse | null;
   onBack: () => void;
 }
 
-export default function ResultsPage({ data, onBack }: Props) {
+export default function ResultsPage({ data, onBack }: ResultsPageProps) {
+  const [activeTab, setActiveTab] = useState<'summary' | 'extractive'>('summary');
 
-  const copyToClipboard = useCallback((text: string, filename: string) => {
-    navigator.clipboard.writeText(text);
-    // If you have a toast library installed: toast.success(`Summary for ${filename} copied`)
-  }, []);
-
-  if (!data) {
-    return <div className="p-8 text-center text-gray-500">No results available</div>;
-  }
+  if (!data) return <div>No results available</div>;
 
   return (
-    <div className="max-w-6xl mx-auto py-8 px-6">
-      <div className="flex items-center gap-4 mb-8">
-        <Button variant="outline" onClick={onBack}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Upload
-        </Button>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Processing Results
-        </h1>
+    <div className="min-h-screen bg-gray-950 text-white pb-12">
+      {/* Header */}
+      <div className="border-b border-gray-800 bg-gray-900">
+        <div className="max-w-6xl mx-auto px-8 py-6 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold">Literature Review Results</h1>
+            <p className="text-gray-400">
+              Processed {data.processed_files} document{data.processed_files > 1 ? 's' : ''}
+            </p>
+          </div>
+          <button
+            onClick={onBack}
+            className="px-6 py-3 border border-gray-700 hover:bg-gray-800 rounded-xl transition flex items-center gap-2"
+          >
+            ← Back to Upload
+          </button>
+        </div>
       </div>
 
-      <div className="mb-6 text-lg text-gray-600 dark:text-gray-400">
-        Processed {data.processed_files} file(s) • Hybrid TextRank + BART
-      </div>
-
-      <div className="space-y-10">
-        {data.results.map((result) => (
-          <Card key={result.filename} className="overflow-hidden">
-            <CardHeader className="bg-teal-50 dark:bg-teal-950 border-b">
-              <CardTitle className="flex justify-between items-center">
-                <span>{result.filename}</span>
-                {result.error && <span className="text-red-500 text-sm">Error</span>}
-              </CardTitle>
-            </CardHeader>
-
-            <CardContent className="p-0">
-              {!result.error && result.extractive && result.abstractive_summary ? (
-                <Tabs defaultValue="extractive" className="w-full">
-                  <TabsList className="w-full grid grid-cols-2 rounded-none">
-                    <TabsTrigger value="extractive">Extractive (TextRank)</TabsTrigger>
-                    <TabsTrigger value="abstractive">Abstractive Summary</TabsTrigger>
-                  </TabsList>
-
-                  {/* Extractive Tab */}
-                  <TabsContent value="extractive" className="p-6">
-                    <h3 className="font-semibold mb-4 text-lg">Ranked Key Sentences</h3>
-                    <div className="space-y-5">
-                      {result.extractive.key_sentences.map((sent, i) => (
-                        <div key={i} className="flex gap-5 p-5 border rounded-xl">
-                          <div className="flex-shrink-0 w-9 h-9 rounded-full bg-teal-100 dark:bg-teal-900 flex items-center justify-center text-teal-700 dark:text-teal-300 font-mono font-bold">
-                            {sent.rank}
-                          </div>
-                          <div className="flex-1">
-                            <p className="leading-relaxed text-gray-700 dark:text-gray-300">
-                              {sent.sentence}
-                            </p>
-                            <div className="mt-3 flex gap-6 text-sm">
-                              <span className="font-medium text-teal-600">
-                                Score: {sent.score}
-                              </span>
-                              <span className="text-gray-500">
-                                Position: {sent.original_position + 1}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </TabsContent>
-
-                  {/* Abstractive Tab */}
-                  <TabsContent value="abstractive" className="p-6">
-                    <div className="flex justify-between items-start mb-4">
-                      <h3 className="font-semibold text-lg">Abstractive Summary</h3>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => copyToClipboard(result.abstractive_summary, result.filename)}
-                      >
-                        <Copy className="mr-2 h-4 w-4" />
-                        Copy Summary
-                      </Button>
-                    </div>
-                    <div className="p-6 bg-gray-50 dark:bg-gray-900 rounded-2xl border leading-relaxed text-[15px] text-gray-700 dark:text-gray-200">
-                      {result.abstractive_summary}
-                    </div>
-                  </TabsContent>
-                </Tabs>
-              ) : (
-                <div className="p-8 text-center text-red-500">
-                  Failed to process this file: {result.error}
+      <div className="max-w-6xl mx-auto px-8 py-10">
+        {data.results.map((result, index) => (
+          <div key={index} className="mb-12 bg-gray-900 border border-gray-800 rounded-3xl overflow-hidden">
+            {/* File Header */}
+            <div className="bg-gray-950 px-8 py-5 border-b border-gray-800 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="text-3xl">📄</div>
+                <div>
+                  <h3 className="font-semibold text-xl">{result.filename}</h3>
+                  {result.error && (
+                    <p className="text-red-400 text-sm mt-1">{result.error}</p>
+                  )}
                 </div>
+              </div>
+              <div className="text-sm text-gray-400">
+                {result.extractive?.total_extracted || 0} key sentences extracted
+              </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-gray-800">
+              <button
+                onClick={() => setActiveTab('summary')}
+                className={`flex-1 py-4 text-center font-medium transition ${
+                  activeTab === 'summary'
+                    ? 'text-teal-400 border-b-2 border-teal-400'
+                    : 'text-gray-400 hover:text-gray-200'
+                }`}
+              >
+                Abstractive Summary (BART)
+              </button>
+              <button
+                onClick={() => setActiveTab('extractive')}
+                className={`flex-1 py-4 text-center font-medium transition ${
+                  activeTab === 'extractive'
+                    ? 'text-teal-400 border-b-2 border-teal-400'
+                    : 'text-gray-400 hover:text-gray-200'
+                }`}
+              >
+                Extractive Key Sentences (TextRank)
+              </button>
+            </div>
+
+            {/* Content Area */}
+            <div className="p-8">
+              {activeTab === 'summary' ? (
+                <div>
+                  <p className="text-gray-300 leading-relaxed text-[17px]">
+                    {result.abstractive_summary || "No summary generated."}
+                  </p>
+                </div>
+              ) : (
+                <ol className="space-y-6 list-none">
+                  {result.extractive?.key_sentences && result.extractive.key_sentences.length > 0 ? (
+                    result.extractive.key_sentences.map((sentence, i) => (
+                      <li key={i} className="flex gap-5 bg-gray-950 p-5 rounded-2xl border border-gray-800">
+                        <div className="w-8 h-8 rounded-full bg-teal-900 flex-shrink-0 flex items-center justify-center font-bold text-sm" aria-label={`Sentence ${i + 1}`}>
+                          {i + 1}
+                        </div>
+                        <p className="text-gray-200 leading-relaxed">
+                          {sentence.sentence}
+                        </p>
+                      </li>
+                    ))
+                  ) : (
+                    <p className="text-gray-400 italic">No key sentences available.</p>
+                  )}
+                </ol>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         ))}
+
+        {/* Overall Stats */}
+        <div className="bg-gray-900 border border-gray-800 rounded-3xl p-8 text-center">
+          <p className="text-teal-400 text-sm font-medium tracking-widest">
+            HYBRID PIPELINE COMPLETE — TEXT-RANK + BART
+          </p>
+          <p className="text-gray-500 mt-2">
+            Automated Literature Review Assistant • Ayodeji Ajayi (Covenant University)
+          </p>
+        </div>
       </div>
     </div>
   );
