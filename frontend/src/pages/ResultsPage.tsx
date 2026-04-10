@@ -1,5 +1,7 @@
 // frontend/src/pages/ResultsPage.tsx
 import { useState } from 'react';
+import { Copy, Check } from 'lucide-react';
+import { toast } from 'sonner';
 import type { ProcessResponse } from '../types';
 
 interface ResultsPageProps {
@@ -29,9 +31,10 @@ export default function ResultsPage({
     try {
       await navigator.clipboard.writeText(text);
       setCopiedId(id);
+      toast.success('Copied to clipboard!');
       setTimeout(() => setCopiedId(null), 2000);
     } catch (err) {
-      alert("Failed to copy to clipboard");
+      toast.error('Failed to copy to clipboard');
     }
   };
 
@@ -131,9 +134,14 @@ export default function ResultsPage({
                   <div className="relative">
                     <button
                       onClick={() => copyToClipboard(result.abstractive_summary || "", `summary-${filename}`)}
-                      className="absolute top-2 right-2 text-teal-400 hover:text-teal-300 text-sm flex items-center gap-1 px-3 py-1 rounded-lg hover:bg-gray-800"
+                      className="absolute top-2 right-2 text-teal-400 hover:text-teal-300 flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-800 transition-all"
+                      title={copiedId === `summary-${filename}` ? "Copied!" : "Copy summary"}
                     >
-                      {copiedId === `summary-${filename}` ? "✓ Copied!" : "📋 Copy Summary"}
+                      {copiedId === `summary-${filename}` ? (
+                        <Check size={18} className="text-green-400" />
+                      ) : (
+                        <Copy size={18} />
+                      )}
                     </button>
                     <p className="text-gray-200 leading-relaxed text-[17px] pr-24">
                       {result.abstractive_summary || "No summary available."}
@@ -152,9 +160,14 @@ export default function ResultsPage({
                           </p>
                           <button
                             onClick={() => copyToClipboard(sentence.sentence, `sent-${filename}-${i}`)}
-                            className="mt-4 text-xs text-teal-400 hover:text-teal-300"
+                            className="mt-4 text-teal-400 hover:text-teal-300 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-gray-800 transition-all text-sm"
+                            title={copiedId === `sent-${filename}-${i}` ? "Copied!" : "Copy sentence"}
                           >
-                            {copiedId === `sent-${filename}-${i}` ? "✓ Copied" : "Copy sentence"}
+                            {copiedId === `sent-${filename}-${i}` ? (
+                              <Check size={16} className="text-green-400" />
+                            ) : (
+                              <Copy size={16} />
+                            )}
                           </button>
                         </div>
                       </div>
