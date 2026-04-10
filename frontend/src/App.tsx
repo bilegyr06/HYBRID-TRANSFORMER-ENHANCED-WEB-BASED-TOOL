@@ -19,13 +19,13 @@ function App() {
   const handleBackToUpload = useCallback(() => {
     setCurrentPage('upload');
     setProcessData(null);
+    setCurrentReviewTitle("");
   }, []);
 
   const handleGoToMyReviews = useCallback(() => {
     setCurrentPage('my-reviews');
   }, []);
 
-  // Save current review
   const handleSaveReview = async () => {
     if (!processData) return;
 
@@ -43,8 +43,8 @@ function App() {
       });
 
       if (response.ok) {
-        alert("Review saved successfully! You can view it in My Reviews.");
-        setCurrentReviewTitle(""); // clear title
+        alert("Review saved successfully!");
+        setCurrentReviewTitle("");
       } else {
         alert("Failed to save review.");
       }
@@ -73,6 +73,7 @@ function App() {
           data={processData} 
           onBack={handleBackToUpload}
           onSaveReview={handleSaveReview}
+          onGoToMyReviews={handleGoToMyReviews}
           reviewTitle={currentReviewTitle}
           setReviewTitle={setCurrentReviewTitle}
         />

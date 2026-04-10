@@ -8,6 +8,7 @@ interface ResultsPageProps {
   data: ProcessResponse | null;
   onBack: () => void;
   onSaveReview: () => void;
+  onGoToMyReviews: () => void;
   reviewTitle: string;
   setReviewTitle: (title: string) => void;
 }
@@ -15,7 +16,8 @@ interface ResultsPageProps {
 export default function ResultsPage({ 
   data, 
   onBack, 
-  onSaveReview, 
+  onSaveReview,
+  onGoToMyReviews,
   reviewTitle, 
   setReviewTitle 
 }: ResultsPageProps) {
@@ -61,6 +63,12 @@ export default function ResultsPage({
               className="px-6 py-3 border border-gray-700 hover:bg-gray-800 rounded-xl transition"
             >
               ← Back to Upload
+            </button>
+            <button
+              onClick={onGoToMyReviews}
+              className="px-6 py-3 border border-gray-700 hover:bg-gray-800 rounded-xl transition"
+            >
+              My Reviews
             </button>
             <button
               onClick={onSaveReview}

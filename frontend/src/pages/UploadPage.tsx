@@ -3,7 +3,7 @@ import { useState } from 'react';
 import type { ProcessResponse } from '../types';
 
 interface UploadPageProps {
-  onProcessComplete: (data: ProcessResponse) => void;   // We'll improve the type later
+  onProcessComplete: (data: ProcessResponse) => void;
   onGoToMyReviews: () => void;
 }
 
@@ -67,7 +67,7 @@ export default function UploadPage({ onProcessComplete, onGoToMyReviews }: Uploa
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          filenames: files.map(f => f.name)   // send the filenames to process
+          filenames: files.map(f => f.name)
         }),
       });
 
@@ -147,58 +147,67 @@ export default function UploadPage({ onProcessComplete, onGoToMyReviews }: Uploa
                       <div className="text-2xl">📄</div>
                       <div className="min-w-0">
                         <p className="font-medium truncate">{file.name}</p>
-                        <p className="text-xs text-gray-500">
-                          {(file.size / (1024 * 1024)).toFixed(2)} MB
-                        </p>
+                        <p className="text-xs text-gray-500">{(file.size / 1024).toFixed(1)} KB</p>
                       </div>
                     </div>
-                    <button onClick={() => removeFile(index)} className="text-red-400 hover:text-red-500">✕</button>
+                    <button
+                      onClick={() => removeFile(index)}
+                      className="text-red-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition text-sm"
+                    >
+                      Remove
+                    </button>
                   </div>
                 ))}
               </div>
+
+              <button
+                onClick={handleProcess}
+                disabled={isProcessing || files.length === 0}
+                className="w-full mt-8 py-4 bg-teal-600 hover:bg-teal-500 disabled:bg-gray-700 text-white font-semibold rounded-2xl transition"
+              >
+                {isProcessing ? 'Processing...' : 'Process Documents'}
+              </button>
             </div>
           )}
-
-          <button
-            onClick={handleProcess}
-            disabled={files.length === 0 || isProcessing}
-            className={`mt-10 w-full py-4 text-lg font-semibold rounded-2xl transition-all flex items-center justify-center gap-3 ${
-              files.length > 0 && !isProcessing
-                ? 'bg-teal-600 hover:bg-teal-500'
-                : 'bg-gray-700 cursor-not-allowed'
-            }`}
-          >
-            {isProcessing ? (
-              <>
-                <span className="animate-spin inline-block w-5 h-5 border-2 border-white border-t-transparent rounded-full"></span>
-                Processing with Hybrid AI...
-              </>
-            ) : (
-              'Process with Hybrid AI'
-            )}
-          </button>
         </div>
 
-        {/* Right Sidebar */}
-        <div className="col-span-5">
-          <div className="sticky top-8 bg-gray-900 border border-gray-800 rounded-3xl p-8">
-            <h3 className="text-xl font-semibold mb-6">How the Hybrid System Works</h3>
-            <div className="space-y-8 text-gray-300">
-              <div className="flex gap-5">
-                <div className="w-9 h-9 rounded-2xl bg-teal-900 flex items-center justify-center flex-shrink-0 font-bold">1</div>
-                <div>TextRank extracts the most important sentences from each paper</div>
-              </div>
-              <div className="flex gap-5">
-                <div className="w-9 h-9 rounded-2xl bg-teal-900 flex items-center justify-center flex-shrink-0 font-bold">2</div>
-                <div>BART generates coherent, human-like abstractive summaries</div>
-              </div>
-              <div className="flex gap-5">
-                <div className="w-9 h-9 rounded-2xl bg-teal-900 flex items-center justify-center flex-shrink-0 font-bold">3</div>
-                <div>Key themes and insights are automatically clustered</div>
-              </div>
+        {/* Info Panel */}
+        <div className="col-span-5 space-y-6">
+          <div className="bg-gray-900 border border-gray-800 rounded-3xl p-8">
+            <h3 className="text-xl font-semibold mb-4">How it works</h3>
+            <ol className="space-y-4 text-sm text-gray-300">
+              <li className="flex gap-3">
+                <span className="font-bold text-teal-400">1</span>
+                <span>Upload PDF or TXT documents about your research topic</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-bold text-teal-400">2</span>
+                <span>Our AI extracts key sentences using TextRank algorithm</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-bold text-teal-400">3</span>
+                <span>BART model generates abstractive summaries</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-bold text-teal-400">4</span>
+                <span>Save your review with a custom title for future reference</span>
+              </li>
+            </ol>
+          </div>
+
+          <div className="bg-gray-900 border border-gray-800 rounded-3xl p-8">
+            <h3 className="text-xl font-semibold mb-3">Supported Formats</h3>
+            <div className="space-y-2 text-sm text-gray-400">
+              <p>📄 PDF (.pdf)</p>
+              <p>📝 Plain Text (.txt)</p>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Footer */}
+      <div className="text-center text-gray-500 text-sm mt-16 pb-8">
+        Hybrid TextRank + BART Pipeline • Deji Ayodeji • Covenant University FYP 2025/2026
       </div>
     </div>
   );
