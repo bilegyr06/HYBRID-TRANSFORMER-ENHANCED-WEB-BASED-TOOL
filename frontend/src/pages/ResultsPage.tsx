@@ -1,35 +1,45 @@
 // frontend/src/pages/ResultsPage.tsx
 import { useState } from 'react';
-import { toast } from 'sonner';
-import { Copy } from 'lucide-react';
 import type { ProcessResponse } from '../types';
 
 interface ResultsPageProps {
   data: ProcessResponse | null;
   onBack: () => void;
+  onSaveReview: () => void;
+  reviewTitle: string;
+  setReviewTitle: (title: string) => void;
 }
 
-export default function ResultsPage({ data, onBack }: ResultsPageProps) {
-  const [activeTabs, setActiveTabs] = useState<Record<number, 'summary' | 'extractive'>>({});
+export default function ResultsPage({ 
+  data, 
+  onBack, 
+  onSaveReview, 
+  reviewTitle, 
+  setReviewTitle 
+}: ResultsPageProps) {
+  
+  const [activeTabs, setActiveTabs] = useState<Record<string, 'summary' | 'extractive'>>({});
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const getActiveTab = (resultIndex: number): 'summary' | 'extractive' => {
-    return activeTabs[resultIndex] ?? 'summary';
-  };
+  if (!data) {
+    return <div className="text-center py-20 text-gray-400">No results available</div>;
+  }
 
-  const setActiveTab = (resultIndex: number, tab: 'summary' | 'extractive') => {
-    setActiveTabs(prev => ({ ...prev, [resultIndex]: tab }));
-  };
-
-  const copyToClipboard = async (text: string) => {
+  const copyToClipboard = async (text: string, id: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      toast.success('Copied to clipboard!');
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
     } catch (err) {
-      toast.error('Failed to copy');
+      alert("Failed to copy to clipboard");
     }
   };
 
-  if (!data) return <div>No results available</div>;
+  const getActiveTab = (filename: string) => activeTabs[filename] || 'summary';
+
+  const setActiveTab = (filename: string, tab: 'summary' | 'extractive') => {
+    setActiveTabs(prev => ({ ...prev, [filename]: tab }));
+  };
 
   return (
     <div className="min-h-screen bg-gray-950 text-white pb-12">
@@ -39,120 +49,127 @@ export default function ResultsPage({ data, onBack }: ResultsPageProps) {
           <div>
             <h1 className="text-3xl font-bold">Literature Review Results</h1>
             <p className="text-gray-400">
-              Processed {data.processed_files} document{data.processed_files > 1 ? 's' : ''}
+              Processed {data.processed_files} document{data.processed_files !== 1 ? 's' : ''}
             </p>
           </div>
-          <button
-            onClick={onBack}
-            className="px-6 py-3 border border-gray-700 hover:bg-gray-800 rounded-xl transition flex items-center gap-2"
-          >
-            ← Back to Upload
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={onBack}
+              className="px-6 py-3 border border-gray-700 hover:bg-gray-800 rounded-xl transition"
+            >
+              ← Back to Upload
+            </button>
+            <button
+              onClick={onSaveReview}
+              disabled={!reviewTitle.trim()}
+              className="px-6 py-3 bg-teal-600 hover:bg-teal-500 disabled:bg-gray-700 rounded-xl transition"
+            >
+              Save Review
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-8 py-10">
-        {data.results.map((result, index) => (
-          <div key={index} className="mb-12 bg-gray-900 border border-gray-800 rounded-3xl overflow-hidden">
-            {/* File Header */}
-            <div className="bg-gray-950 px-8 py-5 border-b border-gray-800 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="text-3xl">📄</div>
-                <div>
-                  <h3 className="font-semibold text-xl">{result.filename}</h3>
-                  {result.error && (
-                    <p className="text-red-400 text-sm mt-1">{result.error}</p>
-                  )}
-                </div>
-              </div>
-              <div className="text-sm text-gray-400">
-                {result.extractive?.total_extracted || 0} key sentences extracted
-              </div>
-            </div>
+      {/* Save Title Input */}
+      <div className="max-w-6xl mx-auto px-8 py-6">
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+          <label className="block text-sm text-gray-400 mb-2">Review Title (optional)</label>
+          <input
+            type="text"
+            value={reviewTitle}
+            onChange={(e) => setReviewTitle(e.target.value)}
+            placeholder="e.g. Transformer Models in Healthcare - March 2026"
+            className="w-full bg-gray-950 border border-gray-700 rounded-xl px-5 py-3 text-white focus:outline-none focus:border-teal-500"
+          />
+        </div>
+      </div>
 
-            {/* Tabs */}
-            <div className="flex border-b border-gray-800">
-              <button
-                onClick={() => setActiveTab(index, 'summary')}
-                className={`flex-1 py-4 text-center font-medium transition ${
-                  getActiveTab(index) === 'summary'
-                    ? 'text-teal-400 border-b-2 border-teal-400'
-                    : 'text-gray-400 hover:text-gray-200'
-                }`}
-              >
-                Abstractive Summary (BART)
-              </button>
-              <button
-                onClick={() => setActiveTab(index, 'extractive')}
-                className={`flex-1 py-4 text-center font-medium transition ${
-                  getActiveTab(index) === 'extractive'
-                    ? 'text-teal-400 border-b-2 border-teal-400'
-                    : 'text-gray-400 hover:text-gray-200'
-                }`}
-              >
-                Extractive Key Sentences (TextRank)
-              </button>
-            </div>
+      <div className="max-w-6xl mx-auto px-8">
+        {data.results.map((result, index) => {
+          const filename = result.filename;
+          const activeTab = getActiveTab(filename);
 
-            {/* Content Area */}
-            <div className="p-8">
-              {getActiveTab(index) === 'summary' ? (
-                <div>
-                  <div className="flex justify-between items-start gap-4">
-                    <p className="text-gray-300 leading-relaxed text-[17px] flex-1">
-                      {result.abstractive_summary || "No summary generated."}
-                    </p>
-                    {result.abstractive_summary && (
-                      <button
-                        onClick={() => copyToClipboard(result.abstractive_summary)}
-                        className="flex-shrink-0 p-2 rounded-lg hover:bg-gray-800 transition text-gray-400 hover:text-teal-400"
-                        title="Copy summary"
-                      >
-                        <Copy size={20} />
-                      </button>
-                    )}
+          return (
+            <div key={index} className="mb-12 bg-gray-900 border border-gray-800 rounded-3xl overflow-hidden">
+              {/* File Header */}
+              <div className="bg-gray-950 px-8 py-5 border-b border-gray-800 flex justify-between items-center">
+                <div className="flex items-center gap-4">
+                  <div className="text-3xl">📄</div>
+                  <div>
+                    <h3 className="font-semibold text-xl">{filename}</h3>
+                    {result.error && <p className="text-red-400 text-sm mt-1">{result.error}</p>}
                   </div>
                 </div>
-              ) : (
-                <ol className="space-y-6 list-none">
-                  {result.extractive?.key_sentences && result.extractive.key_sentences.length > 0 ? (
-                    result.extractive.key_sentences.map((sentence, i) => (
-                      <li key={i} className="flex gap-5 bg-gray-950 p-5 rounded-2xl border border-gray-800 group">
-                        <div className="w-8 h-8 rounded-full bg-teal-900 flex-shrink-0 flex items-center justify-center font-bold text-sm" aria-label={`Sentence ${i + 1}`}>
+                <div className="text-sm text-gray-400">
+                  {result.extractive?.total_extracted || 0} key sentences extracted
+                </div>
+              </div>
+
+              {/* Tabs */}
+              <div className="flex border-b border-gray-800">
+                <button
+                  onClick={() => setActiveTab(filename, 'summary')}
+                  className={`flex-1 py-4 font-medium transition ${
+                    activeTab === 'summary' ? 'text-teal-400 border-b-2 border-teal-400' : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Abstractive Summary (BART)
+                </button>
+                <button
+                  onClick={() => setActiveTab(filename, 'extractive')}
+                  className={`flex-1 py-4 font-medium transition ${
+                    activeTab === 'extractive' ? 'text-teal-400 border-b-2 border-teal-400' : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Extractive Key Sentences (TextRank)
+                </button>
+              </div>
+
+              {/* Content Area */}
+              <div className="p-8">
+                {activeTab === 'summary' ? (
+                  <div className="relative">
+                    <button
+                      onClick={() => copyToClipboard(result.abstractive_summary || "", `summary-${filename}`)}
+                      className="absolute top-2 right-2 text-teal-400 hover:text-teal-300 text-sm flex items-center gap-1 px-3 py-1 rounded-lg hover:bg-gray-800"
+                    >
+                      {copiedId === `summary-${filename}` ? "✓ Copied!" : "📋 Copy Summary"}
+                    </button>
+                    <p className="text-gray-200 leading-relaxed text-[17px] pr-24">
+                      {result.abstractive_summary || "No summary available."}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {result.extractive?.key_sentences?.map((sentence, i) => (
+                      <div key={i} className="flex gap-5 bg-gray-950 p-6 rounded-2xl border border-gray-800 group">
+                        <div className="w-8 h-8 rounded-full bg-teal-900 flex-shrink-0 flex items-center justify-center font-bold text-sm mt-1">
                           {i + 1}
                         </div>
-                        <div className="flex-1 flex justify-between items-start gap-4">
+                        <div className="flex-1">
                           <p className="text-gray-200 leading-relaxed">
                             {sentence.sentence}
                           </p>
                           <button
-                            onClick={() => copyToClipboard(sentence.sentence)}
-                            className="flex-shrink-0 p-2 rounded-lg hover:bg-gray-800 transition text-gray-400 hover:text-teal-400 opacity-0 group-hover:opacity-100"
-                            title="Copy sentence"
+                            onClick={() => copyToClipboard(sentence.sentence, `sent-${filename}-${i}`)}
+                            className="mt-4 text-xs text-teal-400 hover:text-teal-300"
                           >
-                            <Copy size={18} />
+                            {copiedId === `sent-${filename}-${i}` ? "✓ Copied" : "Copy sentence"}
                           </button>
                         </div>
-                      </li>
-                    ))
-                  ) : (
-                    <p className="text-gray-400 italic">No key sentences available.</p>
-                  )}
-                </ol>
-              )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
+      </div>
 
-        {/* Overall Stats */}
-        <div className="bg-gray-900 border border-gray-800 rounded-3xl p-8 text-center">
-          <p className="text-teal-400 text-sm font-medium tracking-widest">
-            HYBRID PIPELINE COMPLETE — TEXT-RANK + BART
-          </p>
-          <p className="text-gray-500 mt-2">
-            Automated Literature Review Assistant • Ayodeji Ajayi (Covenant University)
-          </p>
-        </div>
+      {/* Footer */}
+      <div className="text-center text-gray-500 text-sm mt-16">
+        Hybrid TextRank + BART Pipeline • Deji Ayodeji • Covenant University FYP 2025/2026
       </div>
     </div>
   );

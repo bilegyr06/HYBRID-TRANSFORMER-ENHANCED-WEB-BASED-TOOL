@@ -3,16 +3,27 @@ import shutil               # now properly imported — we use it below
 import pdfplumber
 from typing import List
 from pydantic import BaseModel
+import json
+from datetime import datetime
+from pathlib import Path
 
 from src.core.config import settings
 from src.services.text_rank_service_improved import TextRankService
 from src.services.summarizer_service import SummarizerService
 
-text_rank = TextRankService(top_k=8)
-summarizer = SummarizerService()  # loads once when module imports
+REVIEWS_DIR = Path("data/reviews")
+REVIEWS_DIR.mkdir(parents=True, exist_ok=True)
+
+class ReviewSaveRequest(BaseModel):
+    title: str
+    results: list
 
 class ProcessRequest(BaseModel):
     filenames: List[str] = []
+
+
+text_rank = TextRankService()
+summarizer = SummarizerService()  # loads once when module imports
 
 
 router = APIRouter(tags=["Upload & Process"])
@@ -117,3 +128,57 @@ async def process_documents(request: ProcessRequest):
         "processed_files": len(results),
         "results": results
     }
+
+
+@router.post("/save-review")
+async def save_review(request: ReviewSaveRequest):
+    """Save current processing result as a review"""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    review_id = f"review_{timestamp}"
+    
+    review_data = {
+        "id": review_id,
+        "title": request.title,
+        "date": datetime.now().isoformat(),
+        "processed_files": len(request.results),
+        "results": request.results
+    }
+    
+    file_path = REVIEWS_DIR / f"{review_id}.json"
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(review_data, f, indent=2, ensure_ascii=False)
+    
+    return {"status": "success", "review_id": review_id, "message": "Review saved successfully"}
+
+
+@router.get("/reviews")
+async def get_all_reviews():
+    """Get list of all saved reviews"""
+    reviews = []
+    for file in REVIEWS_DIR.glob("*.json"):
+        try:
+            with open(file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                reviews.append({
+                    "id": data["id"],
+                    "title": data["title"],
+                    "date": data["date"],
+                    "processed_files": data["processed_files"]
+                })
+        except json.JSONDecodeError:
+            continue
+    
+    # Sort by date (newest first)
+    reviews.sort(key=lambda x: x["date"], reverse=True)
+    return {"status": "success", "reviews": reviews}
+
+
+@router.get("/reviews/{review_id}")
+async def get_review(review_id: str):
+    """Get single review by ID"""
+    file_path = REVIEWS_DIR / f"{review_id}.json"
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Review not found")
+    
+    with open(file_path, "r", encoding="utf-8") as f:
+        return json.load(f)

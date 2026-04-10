@@ -3,10 +3,11 @@ import { useState } from 'react';
 import type { ProcessResponse } from '../types';
 
 interface UploadPageProps {
-  onProcessComplete: (data: any) => void;   // We'll improve the type later
+  onProcessComplete: (data: ProcessResponse) => void;   // We'll improve the type later
+  onGoToMyReviews: () => void;
 }
 
-export default function UploadPage({ onProcessComplete }: UploadPageProps) {
+export default function UploadPage({ onProcessComplete, onGoToMyReviews }: UploadPageProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -61,8 +62,6 @@ export default function UploadPage({ onProcessComplete }: UploadPageProps) {
         throw new Error("Upload failed");
       }
 
-      // const uploadData = await uploadResponse.json();
-
       // STEP 2: Process the uploaded files
       const processResponse = await fetch("http://localhost:8000/api/process", {
         method: "POST",
@@ -93,12 +92,12 @@ export default function UploadPage({ onProcessComplete }: UploadPageProps) {
       <div className="border-b border-gray-800 bg-gray-900">
         <div className="max-w-6xl mx-auto px-8 py-6 flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Automated Literature Review Assistant</h1>
+            <h1 className="text-3xl font-bold">Automated Literature Review Assistant</h1>
             <p className="text-gray-400 mt-1">Hybrid TextRank + BART • Extract insights from research papers</p>
           </div>
           <button 
-            onClick={() => window.location.reload()} 
-            className="px-5 py-2 text-sm border border-gray-700 rounded-lg hover:bg-gray-800 transition"
+            onClick={onGoToMyReviews}
+            className="px-6 py-3 border border-gray-700 hover:bg-gray-800 rounded-xl transition"
           >
             My Reviews
           </button>
@@ -106,7 +105,7 @@ export default function UploadPage({ onProcessComplete }: UploadPageProps) {
       </div>
 
       <div className="max-w-6xl mx-auto px-8 py-12 grid grid-cols-12 gap-10">
-        {/* Upload Section */}
+        {/* Upload Area */}
         <div className="col-span-7">
           <div
             className={`border-2 border-dashed rounded-3xl p-16 text-center transition-all min-h-[420px] flex flex-col items-center justify-center
@@ -131,15 +130,12 @@ export default function UploadPage({ onProcessComplete }: UploadPageProps) {
             </label>
           </div>
 
-          {/* Selected Files List */}
+          {/* Selected Files */}
           {files.length > 0 && (
             <div className="mt-8">
               <div className="flex justify-between items-center mb-4">
                 <h4 className="font-medium">Selected Files ({files.length})</h4>
-                <button
-                  onClick={() => setFiles([])}
-                  className="text-sm text-red-400 hover:text-red-500"
-                >
+                <button onClick={() => setFiles([])} className="text-sm text-red-400 hover:text-red-500">
                   Clear all
                 </button>
               </div>
@@ -156,12 +152,7 @@ export default function UploadPage({ onProcessComplete }: UploadPageProps) {
                         </p>
                       </div>
                     </div>
-                    <button
-                      onClick={() => removeFile(index)}
-                      className="opacity-60 hover:opacity-100 text-red-400"
-                    >
-                      ✕
-                    </button>
+                    <button onClick={() => removeFile(index)} className="text-red-400 hover:text-red-500">✕</button>
                   </div>
                 ))}
               </div>
@@ -171,38 +162,40 @@ export default function UploadPage({ onProcessComplete }: UploadPageProps) {
           <button
             onClick={handleProcess}
             disabled={files.length === 0 || isProcessing}
-            className={`mt-10 w-full py-4 text-lg font-semibold rounded-2xl transition-all ${
+            className={`mt-10 w-full py-4 text-lg font-semibold rounded-2xl transition-all flex items-center justify-center gap-3 ${
               files.length > 0 && !isProcessing
-                ? 'bg-teal-600 hover:bg-teal-500 active:bg-teal-700'
+                ? 'bg-teal-600 hover:bg-teal-500'
                 : 'bg-gray-700 cursor-not-allowed'
             }`}
           >
-            {isProcessing ? 'Processing with Hybrid AI...' : 'Process with Hybrid AI'}
+            {isProcessing ? (
+              <>
+                <span className="animate-spin inline-block w-5 h-5 border-2 border-white border-t-transparent rounded-full"></span>
+                Processing with Hybrid AI...
+              </>
+            ) : (
+              'Process with Hybrid AI'
+            )}
           </button>
         </div>
 
-        {/* Right Sidebar - Info */}
+        {/* Right Sidebar */}
         <div className="col-span-5">
           <div className="sticky top-8 bg-gray-900 border border-gray-800 rounded-3xl p-8">
             <h3 className="text-xl font-semibold mb-6">How the Hybrid System Works</h3>
-            
-            <div className="space-y-8">
+            <div className="space-y-8 text-gray-300">
               <div className="flex gap-5">
                 <div className="w-9 h-9 rounded-2xl bg-teal-900 flex items-center justify-center flex-shrink-0 font-bold">1</div>
-                <div className="text-gray-300">TextRank extracts the most important sentences from each paper</div>
+                <div>TextRank extracts the most important sentences from each paper</div>
               </div>
               <div className="flex gap-5">
                 <div className="w-9 h-9 rounded-2xl bg-teal-900 flex items-center justify-center flex-shrink-0 font-bold">2</div>
-                <div className="text-gray-300">BART generates coherent, human-like abstractive summaries</div>
+                <div>BART generates coherent, human-like abstractive summaries</div>
               </div>
               <div className="flex gap-5">
                 <div className="w-9 h-9 rounded-2xl bg-teal-900 flex items-center justify-center flex-shrink-0 font-bold">3</div>
-                <div className="text-gray-300">Key themes and insights are automatically clustered</div>
+                <div>Key themes and insights are automatically clustered</div>
               </div>
-            </div>
-
-            <div className="mt-12 text-xs text-gray-500 border-t border-gray-800 pt-6">
-              Ayodeji Ajayi • Covenant University FYP 2025/2026
             </div>
           </div>
         </div>
