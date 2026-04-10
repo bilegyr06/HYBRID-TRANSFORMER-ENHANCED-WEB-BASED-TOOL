@@ -40,3 +40,8 @@ export interface ProcessResponse {
 export interface ProcessRequest {
   filenames: string[];
 }
+
+export interface ExtractThemesResponse {
+  status: string;
+  themes: string[];
+}

@@ -1,8 +1,9 @@
 // frontend/src/pages/ResultsPage.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Copy, Check, Download, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ProcessResponse } from '../types';
+import { extractThemes } from '../lib/api';
 
 interface ResultsPageProps {
   data: ProcessResponse | null;
@@ -13,26 +14,6 @@ interface ResultsPageProps {
   setReviewTitle: (title: string) => void;
 }
 
-// Utility function to extract key themes/tags from text
-const extractKeyThemes = (text: string): string[] => {
-  const keywords = [
-    'model', 'learning', 'network', 'algorithm', 'analysis', 'method',
-    'performance', 'accuracy', 'data', 'system', 'framework', 'approach',
-    'training', 'evaluation', 'optimization', 'classification', 'prediction',
-    'feature', 'architecture', 'adaptive', 'hybrid', 'transformer', 'attention'
-  ];
-
-  const foundThemes = new Set<string>();
-  const lowerText = text.toLowerCase();
-
-  keywords.forEach(keyword => {
-    if (lowerText.includes(keyword)) {
-      foundThemes.add(keyword.charAt(0).toUpperCase() + keyword.slice(1));
-    }
-  });
-
-  return Array.from(foundThemes).slice(0, 5);
-};
 
 // Utility function to calculate mock ROUGE scores
 const calculateMetrics = (summary: string, sentences: number) => {
@@ -122,6 +103,40 @@ export default function ResultsPage({
   
   const [activeTabs, setActiveTabs] = useState<Record<string, 'summary' | 'extractive'>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [themesData, setThemesData] = useState<Record<string, string[]>>({});
+  const [loadingThemes, setLoadingThemes] = useState<Record<string, boolean>>({});
+
+  // Fetch themes for all results when data changes
+  useEffect(() => {
+    if (!data) return;
+
+    const fetchAllThemes = async () => {
+      const themesMap: Record<string, string[]> = {};
+      
+      for (const result of data.results) {
+        if (!result.abstractive_summary) {
+          themesMap[result.filename] = [];
+          continue;
+        }
+
+        try {
+          setLoadingThemes(prev => ({ ...prev, [result.filename]: true }));
+          const themes = await extractThemes(result.abstractive_summary);
+          themesMap[result.filename] = themes;
+        } catch (error) {
+          console.error(`Failed to extract themes for ${result.filename}:`, error);
+          // Gracefully fail - show empty themes instead of blocking
+          themesMap[result.filename] = [];
+        } finally {
+          setLoadingThemes(prev => ({ ...prev, [result.filename]: false }));
+        }
+      }
+
+      setThemesData(themesMap);
+    };
+
+    fetchAllThemes();
+  }, [data]);
 
   if (!data) {
     return <div className="text-center py-20 text-gray-400">No results available</div>;
@@ -213,7 +228,8 @@ ${result.extractive?.key_sentences?.map((s: any) => s.sentence).join('\n\n')}
             result.abstractive_summary || "", 
             result.extractive?.key_sentences?.length || 0
           );
-          const themes = extractKeyThemes(result.abstractive_summary || "");
+          const themes = themesData[filename] || [];
+          const isLoadingThemes = loadingThemes[filename] || false;
 
           return (
             <div key={index} className="mb-12 bg-gray-900 border border-gray-800 rounded-3xl overflow-hidden">
@@ -303,7 +319,16 @@ ${result.extractive?.key_sentences?.map((s: any) => s.sentence).join('\n\n')}
                     </div>
 
                     {/* Key Themes Section */}
-                    {themes.length > 0 && (
+                    {isLoadingThemes ? (
+                      <div>
+                        <h4 className="text-sm font-semibold text-gray-400 mb-3">Key Themes</h4>
+                        <div className="flex gap-2">
+                          {[1, 2, 3].map((i) => (
+                            <div key={i} className="h-7 w-20 bg-gray-800 rounded-full animate-pulse"></div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : themes.length > 0 ? (
                       <div>
                         <h4 className="text-sm font-semibold text-gray-400 mb-3">Key Themes</h4>
                         <div className="flex flex-wrap gap-2">
@@ -317,7 +342,7 @@ ${result.extractive?.key_sentences?.map((s: any) => s.sentence).join('\n\n')}
                           ))}
                         </div>
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 ) : (
                   <div className="space-y-6">

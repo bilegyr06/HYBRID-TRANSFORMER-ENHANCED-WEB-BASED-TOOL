@@ -2,7 +2,8 @@ import axios from 'axios';
 import type { 
   UploadResponse, 
   ProcessResponse, 
-  ProcessRequest   // now it will be used
+  ProcessRequest,   // now it will be used
+  ExtractThemesResponse
 } from '../types';
 
 const api = axios.create({
@@ -24,4 +25,9 @@ export const processFiles = async (filenames: string[] = []): Promise<ProcessRes
   const payload: ProcessRequest = { filenames };
   const res = await api.post<ProcessResponse>('/process', payload);
   return res.data;
+};
+
+export const extractThemes = async (text: string): Promise<string[]> => {
+  const res = await api.post<ExtractThemesResponse>('/extract-themes', { text });
+  return res.data.themes;
 };

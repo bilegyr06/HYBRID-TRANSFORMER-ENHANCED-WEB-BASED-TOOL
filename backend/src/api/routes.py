@@ -10,6 +10,7 @@ from pathlib import Path
 from src.core.config import settings
 from src.services.text_rank_service_improved import TextRankService
 from src.services.summarizer_service import SummarizerService
+from src.services.tfidf_service import get_theme_service
 
 REVIEWS_DIR = Path("data/reviews")
 REVIEWS_DIR.mkdir(parents=True, exist_ok=True)
@@ -21,9 +22,17 @@ class ReviewSaveRequest(BaseModel):
 class ProcessRequest(BaseModel):
     filenames: List[str] = []
 
+class ExtractThemesRequest(BaseModel):
+    text: str
+
+class ExtractThemesResponse(BaseModel):
+    status: str
+    themes: List[str]
+
 
 text_rank = TextRankService()
 summarizer = SummarizerService()  # loads once when module imports
+theme_service = get_theme_service()  # TF-IDF theme extraction service
 
 
 router = APIRouter(tags=["Upload & Process"])
@@ -128,6 +137,27 @@ async def process_documents(request: ProcessRequest):
         "processed_files": len(results),
         "results": results
     }
+
+
+@router.post("/extract-themes", response_model=ExtractThemesResponse)
+async def extract_themes(request: ExtractThemesRequest):
+    """
+    Extract key themes from text using TF-IDF scoring.
+    
+    Returns up to 5 most important themes from the input text.
+    Filters out common stopwords and returns capitalized terms.
+    """
+    if not request.text or not request.text.strip():
+        raise HTTPException(status_code=400, detail="Text field cannot be empty")
+    
+    try:
+        themes = theme_service.extract_themes(request.text, num_themes=5)
+        return {
+            "status": "success",
+            "themes": themes
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Theme extraction failed: {str(e)}")
 
 
 @router.post("/save-review")

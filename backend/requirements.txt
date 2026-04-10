@@ -9,6 +9,7 @@ pip == 25.0.1
 pydantic == 2.12.5
 pydantic-settings == 2.13.1
 python-multipart == 0.0.22
+scikit-learn == 1.5.2
 spacy == 3.8.11
 torch == 2.10.0+cu126
 torchaudio == 2.10.0+cu126
