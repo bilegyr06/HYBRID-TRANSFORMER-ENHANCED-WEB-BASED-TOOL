@@ -66,57 +66,57 @@ export default function MyReviewsPage({ onBack, onViewReview }: MyReviewsPagePro
     <div className="min-h-screen bg-gray-950 text-white">
       {/* Header */}
       <div className="border-b border-gray-800 bg-gray-900">
-        <div className="max-w-6xl mx-auto px-8 py-6 flex justify-between items-center">
+        <div className="max-w-full md:max-w-6xl mx-auto px-4 sm:px-6 md:px-8 py-4 sm:py-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
           <div>
-            <h1 className="text-3xl font-bold">My Reviews</h1>
-            <p className="text-gray-400">Previously processed literature reviews</p>
+            <h1 className="text-2xl sm:text-3xl font-bold">My Reviews</h1>
+            <p className="text-gray-400 text-sm sm:text-base">Previously processed literature reviews</p>
           </div>
           <button
             onClick={onBack}
-            className="px-6 py-3 border border-gray-700 hover:bg-gray-800 rounded-xl transition"
+            className="px-4 py-2.5 sm:px-6 sm:py-3 border border-gray-700 hover:bg-gray-800 rounded-xl transition text-sm sm:text-base whitespace-nowrap"
           >
             ← Back to Upload
           </button>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-8 py-10">
+      <div className="max-w-full md:max-w-6xl mx-auto px-2 sm:px-6 md:px-8 py-8 sm:py-10">
         {loading && (
           <div className="text-center py-20">
             <div className="animate-spin inline-block w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full mx-auto"></div>
-            <p className="text-gray-400 mt-4">Loading your reviews...</p>
+            <p className="text-gray-400 mt-4 text-sm sm:text-base">Loading your reviews...</p>
           </div>
         )}
 
         {error && (
-          <div className="bg-red-950 border border-red-800 text-red-300 p-6 rounded-2xl text-center">
+          <div className="bg-red-950 border border-red-800 text-red-300 p-4 sm:p-6 rounded-2xl text-center text-xs sm:text-base">
             {error}
           </div>
         )}
 
         {!loading && !error && reviews.length === 0 && (
           <div className="text-center py-20 text-gray-400">
-            <p className="text-2xl mb-4">No reviews yet</p>
-            <p>Process some papers first to see them here.</p>
+            <p className="text-xl sm:text-2xl mb-4">No reviews yet</p>
+            <p className="text-sm sm:text-base">Process some papers first to see them here.</p>
           </div>
         )}
 
-        <div className="grid gap-6">
+        <div className="grid gap-3 sm:gap-4 md:gap-6">
           {reviews.map((review) => (
             <div
               key={review.id}
-              className="bg-gray-900 border border-gray-800 rounded-3xl p-8 hover:border-teal-600 transition group"
+              className="bg-gray-900 border border-gray-800 rounded-2xl sm:rounded-3xl p-2.5 sm:p-6 md:p-8 hover:border-teal-600 transition group"
             >
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="text-xl font-semibold mb-2">{review.title}</h3>
-                  <p className="text-gray-400 text-sm">
+              <div className="flex flex-col sm:flex-row justify-between items-start gap-3 sm:gap-4">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg sm:text-xl font-semibold mb-2 truncate">{review.title}</h3>
+                  <p className="text-gray-400 text-xs sm:text-sm">
                     {formatDate(review.date)} • {review.processed_files} paper{review.processed_files !== 1 ? 's' : ''}
                   </p>
                 </div>
                 <button
                   onClick={() => handleViewReview(review.id)}
-                  className="px-6 py-3 bg-teal-600 hover:bg-teal-500 rounded-xl text-sm font-medium transition group-hover:scale-105"
+                  className="px-4 sm:px-6 py-2 sm:py-3 bg-teal-600 hover:bg-teal-500 rounded-xl text-xs sm:text-sm font-medium transition group-hover:scale-105 whitespace-nowrap flex-shrink-0"
                 >
                   View Review
                 </button>
