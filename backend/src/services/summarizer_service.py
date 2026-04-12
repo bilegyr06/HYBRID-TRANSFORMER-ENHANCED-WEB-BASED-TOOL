@@ -141,3 +141,108 @@ class SummarizerService:
         except Exception as e:
             logger.error(f"Unexpected error during summarization: {str(e)}")
             return f"Summarization failed: {str(e)}"
+
+    def synthesize_documents(
+        self,
+        results: List[Dict],
+        max_length: int = 250
+    ) -> str:
+        """Generate cross-document synthesis from multiple processed results.
+        
+        Combines key insights from multiple papers into one coherent synthesis
+        using the BART-CNN model. Designed for literature synthesis: aggregates
+        abstractive summaries and key sentences to create unified output.
+        
+        Args:
+            results: List of ProcessResult dictionaries, each containing:
+                    - abstractive_summary: str (per-document summary)
+                    - extractive: dict with 'key_sentences' list
+            max_length: Maximum length of synthesis in tokens.
+                       Defaults to 250 for cross-document synthesis.
+        
+        Returns:
+            Synthesis summary string combining insights from all papers.
+            Returns error message if synthesis fails or input is invalid.
+        
+        Examples:
+            >>> service = SummarizerService()
+            >>> results = [
+            ...   {"abstractive_summary": "...", "extractive": {"key_sentences": [...]}},
+            ...   {"abstractive_summary": "...", "extractive": {"key_sentences": [...]}}
+            ... ]
+            >>> synthesis = service.synthesize_documents(results)
+            >>> print(synthesis)  # Cross-document synthesis
+        """
+        # Validate inputs
+        if not results:
+            logger.warning("Empty results list provided to synthesize_documents")
+            return "No results available for synthesis."
+        
+        if max_length <= MIN_SUMMARY_LENGTH:
+            error_msg = f"max_length ({max_length}) must be > min_length ({MIN_SUMMARY_LENGTH})"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        
+        # Aggregate all abstractive summaries and key sentences
+        combined_summaries = []
+        all_key_sentences = []
+        
+        try:
+            for result in results:
+                # Collect abstractive summaries
+                if result.get("abstractive_summary"):
+                    combined_summaries.append(result["abstractive_summary"])
+                
+                # Collect all key sentences from all papers
+                if result.get("extractive", {}).get("key_sentences"):
+                    for sentence_obj in result["extractive"]["key_sentences"]:
+                        if isinstance(sentence_obj, dict) and "sentence" in sentence_obj:
+                            all_key_sentences.append(sentence_obj.get("sentence", ""))
+            
+            # Construct synthesis input: summaries + top key sentences
+            summaries_text = " ".join(combined_summaries)
+            
+            # Take top key sentences (by position/inclusion) for synthesis context
+            key_sentences_text = " ".join(all_key_sentences[:15])  # Limit to first 15 sentences
+            
+            # Build synthesis prompt
+            synthesis_prompt = (
+                "Synthesize the following key insights from multiple academic papers "
+                "into one coherent, unified summary that captures the main themes and findings. "
+                "Avoid repetition and focus on cross-paper connections and insights:\n\n"
+                f"PAPER SUMMARIES:\n{summaries_text}\n\n"
+                f"KEY INSIGHTS:\n{key_sentences_text}"
+            )
+            
+            # Truncate if too long
+            if len(synthesis_prompt) > MAX_PROMPT_LENGTH:
+                logger.debug(
+                    f"Synthesis prompt truncated from {len(synthesis_prompt)} to {MAX_PROMPT_LENGTH} characters"
+                )
+                synthesis_prompt = synthesis_prompt[:MAX_PROMPT_LENGTH] + "..."
+            
+            logger.debug(f"Generating synthesis from {len(results)} documents (max_length={max_length})...")
+            synthesis = self.summarizer(
+                synthesis_prompt,
+                max_length=max_length,
+                min_length=MIN_SUMMARY_LENGTH,
+                do_sample=False,
+                num_beams=NUM_BEAMS,
+                early_stopping=True
+            )[0]['summary_text']
+            
+            result = synthesis.strip()
+            logger.info(f"Successfully generated synthesis ({len(result)} characters)")
+            return result
+            
+        except RuntimeError as e:
+            error_msg = f"Model error during synthesis: {str(e)}"
+            logger.error(error_msg)
+            return f"Synthesis failed: {error_msg}"
+        except (KeyError, IndexError) as e:
+            error_msg = f"Unexpected model output format: {str(e)}"
+            logger.error(error_msg)
+            return f"Synthesis failed: {error_msg}"
+        except Exception as e:
+            logger.error(f"Unexpected error during synthesis: {str(e)}")
+            return f"Synthesis failed: {str(e)}"

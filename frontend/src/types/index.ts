@@ -34,6 +34,7 @@ export interface ProcessResponse {
   status: string;
   processed_files: number;
   results: ProcessResult[];
+  overall_synthesis?: string | null;
 }
 
 // Add this at the end of the file

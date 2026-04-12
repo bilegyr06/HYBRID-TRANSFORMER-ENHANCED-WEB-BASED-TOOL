@@ -14,6 +14,7 @@ interface ResultsPageProps {
   setReviewTitle: (title: string) => void;
 }
 
+type ViewTab = 'synthesis' | 'results';
 
 // Utility function to calculate mock ROUGE scores
 const calculateMetrics = (summary: string, sentences: number) => {
@@ -101,6 +102,7 @@ export default function ResultsPage({
   setReviewTitle 
 }: ResultsPageProps) {
   
+  const [activeTab, setActiveTab] = useState<ViewTab>('results');
   const [activeTabs, setActiveTabs] = useState<Record<string, 'summary' | 'extractive'>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [themesData, setThemesData] = useState<Record<string, string[]>>({});
@@ -125,7 +127,6 @@ export default function ResultsPage({
           themesMap[result.filename] = themes;
         } catch (error) {
           console.error(`Failed to extract themes for ${result.filename}:`, error);
-          // Gracefully fail - show empty themes instead of blocking
           themesMap[result.filename] = [];
         } finally {
           setLoadingThemes(prev => ({ ...prev, [result.filename]: false }));
@@ -167,9 +168,12 @@ ${result.extractive?.key_sentences?.map((s: any) => s.sentence).join('\n\n')}
 
   const getActiveTab = (filename: string) => activeTabs[filename] || 'summary';
 
-  const setActiveTab = (filename: string, tab: 'summary' | 'extractive') => {
+  const setActiveDocTab = (filename: string, tab: 'summary' | 'extractive') => {
     setActiveTabs(prev => ({ ...prev, [filename]: tab }));
   };
+
+  // Check if synthesis is available (2+ documents)
+  const hasSynthesis = data.overall_synthesis && data.processed_files >= 2;
 
   return (
     <div className="min-h-screen bg-gray-950 text-white pb-12">
@@ -220,198 +224,269 @@ ${result.extractive?.key_sentences?.map((s: any) => s.sentence).join('\n\n')}
         </div>
       </div>
 
+      {/* Main Content Area */}
       <div className="max-w-full md:max-w-6xl mx-auto px-4 sm:px-6 md:px-8">
-        {data.results.map((result, index) => {
-          const filename = result.filename;
-          const activeTab = getActiveTab(filename);
-          const metrics = calculateMetrics(
-            result.abstractive_summary || "", 
-            result.extractive?.key_sentences?.length || 0
-          );
-          const themes = themesData[filename] || [];
-          const isLoadingThemes = loadingThemes[filename] || false;
+        {/* Top-level Tabs - Synthesis vs Results */}
+        {hasSynthesis && (
+          <div className="flex gap-2 mb-6 border-b border-gray-800">
+            <button
+              onClick={() => setActiveTab('synthesis')}
+              className={`py-3 sm:py-4 px-3 sm:px-6 font-medium transition text-sm sm:text-base ${
+                activeTab === 'synthesis'
+                  ? 'text-teal-400 border-b-2 border-teal-400'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Overall Synthesis
+            </button>
+            <button
+              onClick={() => setActiveTab('results')}
+              className={`py-3 sm:py-4 px-3 sm:px-6 font-medium transition text-sm sm:text-base ${
+                activeTab === 'results'
+                  ? 'text-teal-400 border-b-2 border-teal-400'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Individual Results
+            </button>
+          </div>
+        )}
 
-          return (
-            <div key={index} className="mb-8 sm:mb-12 bg-gray-900 border border-gray-800 rounded-2xl sm:rounded-3xl overflow-hidden">
-              {/* File Header */}
-              <div className="bg-gray-950 px-4 sm:px-6 md:px-8 py-4 sm:py-5 border-b border-gray-800 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4">
-                <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-                  <div className="text-2xl sm:text-3xl flex-shrink-0">📄</div>
-                  <div className="min-w-0">
-                    <h3 className="font-semibold text-lg sm:text-xl truncate">{filename}</h3>
-                    {result.error && <p className="text-red-400 text-xs sm:text-sm mt-1">{result.error}</p>}
+        {/* Synthesis Tab Content */}
+        {activeTab === 'synthesis' && hasSynthesis && (
+          <div className="mb-8 sm:mb-12 bg-gray-900 border border-gray-800 rounded-2xl sm:rounded-3xl overflow-hidden">
+            {/* Synthesis Header */}
+            <div className="bg-gray-950 px-4 sm:px-6 md:px-8 py-4 sm:py-5 border-b border-gray-800">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4">
+                <div className="flex items-center gap-2 sm:gap-4">
+                  <div className="text-2xl sm:text-3xl flex-shrink-0">✨</div>
+                  <div>
+                    <h2 className="font-semibold text-lg sm:text-xl">Cross-Document Synthesis</h2>
+                    <p className="text-xs sm:text-sm text-gray-400 mt-1">Unified insights from all papers</p>
                   </div>
                 </div>
-                <div className="text-xs sm:text-sm text-gray-400 flex-shrink-0">
-                  {result.extractive?.total_extracted || 0} key sentences extracted
-                </div>
-              </div>
-
-              {/* Tabs */}
-              <div className="flex border-b border-gray-800 overflow-x-auto">
-                <button
-                  onClick={() => setActiveTab(filename, 'summary')}
-                  className={`flex-1 py-3 sm:py-4 font-medium transition text-xs sm:text-sm md:text-base whitespace-nowrap ${
-                    activeTab === 'summary' ? 'text-teal-400 border-b-2 border-teal-400' : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  Abstractive Summary (BART)
-                </button>
-                <button
-                  onClick={() => setActiveTab(filename, 'extractive')}
-                  className={`flex-1 py-3 sm:py-4 font-medium transition text-xs sm:text-sm md:text-base whitespace-nowrap ${
-                    activeTab === 'extractive' ? 'text-teal-400 border-b-2 border-teal-400' : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  Extractive Key Sentences (TextRank)
-                </button>
-              </div>
-
-              {/* Metrics Display */}
-              <div className="bg-gray-950 border-b border-gray-800 px-4 sm:px-6 md:px-8 py-3 sm:py-4">
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
-                  <div className="bg-gray-900 rounded-lg p-2 sm:p-3">
-                    <p className="text-xs text-gray-400">ROUGE-1</p>
-                    <p className="text-base sm:text-lg font-semibold text-teal-400">{metrics.rouge1}</p>
-                  </div>
-                  <div className="bg-gray-900 rounded-lg p-2 sm:p-3">
-                    <p className="text-xs text-gray-400">ROUGE-2</p>
-                    <p className="text-base sm:text-lg font-semibold text-teal-400">{metrics.rouge2}</p>
-                  </div>
-                  <div className="bg-gray-900 rounded-lg p-2 sm:p-3">
-                    <p className="text-xs text-gray-400">ROUGE-L</p>
-                    <p className="text-base sm:text-lg font-semibold text-teal-400">{metrics.rougeL}</p>
-                  </div>
-                  <div className="bg-gray-900 rounded-lg p-2 sm:p-3">
-                    <p className="text-xs text-gray-400">Summary Length</p>
-                    <p className="text-base sm:text-lg font-semibold text-purple-400">{metrics.summaryLength} words</p>
-                  </div>
-                  <div className="bg-gray-900 rounded-lg p-2 sm:p-3">
-                    <p className="text-xs text-gray-400">Compression</p>
-                    <p className="text-base sm:text-lg font-semibold text-blue-400">{metrics.compressionRatio}%</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Content Area */}
-              <div 
-                className="p-4 sm:p-6 md:p-8"
-                data-export={filename}
-              >
-                {activeTab === 'summary' ? (
-                  <div className="space-y-4 sm:space-y-6">
-                    {/* Summary Section */}
-                    <div className="relative">
-                      <button
-                        onClick={() => copyToClipboard(result.abstractive_summary || "", `summary-${filename}`)}
-                        className="absolute top-2 right-2 text-teal-400 hover:text-teal-300 flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 rounded-lg hover:bg-gray-800 transition-all text-xs sm:text-sm"
-                        title={copiedId === `summary-${filename}` ? "Copied!" : "Copy summary"}
-                      >
-                        {copiedId === `summary-${filename}` ? (
-                          <Check size={16} className="text-green-400" />
-                        ) : (
-                          <Copy size={16} />
-                        )}
-                        <span className="hidden sm:inline">Copy</span>
-                      </button>
-                      <p className="text-base sm:text-lg text-gray-200 leading-relaxed pr-12 sm:pr-24">
-                        {result.abstractive_summary || "No summary available."}
-                      </p>
-                    </div>
-
-                    {/* Key Themes Section */}
-                    {isLoadingThemes ? (
-                      <div>
-                        <h4 className="text-xs sm:text-sm font-semibold text-gray-400 mb-2 sm:mb-3">Key Themes</h4>
-                        <div className="flex gap-2">
-                          {[1, 2, 3].map((i) => (
-                            <div key={i} className="h-6 sm:h-7 w-16 sm:w-20 bg-gray-800 rounded-full animate-pulse"></div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : themes.length > 0 ? (
-                      <div>
-                        <h4 className="text-xs sm:text-sm font-semibold text-gray-400 mb-2 sm:mb-3">Key Themes</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {themes.map((theme, i) => (
-                            <span
-                              key={i}
-                              className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-teal-900/40 text-teal-300 text-xs sm:text-sm rounded-full border border-teal-700/50 hover:bg-teal-900/60 transition"
-                            >
-                              #{theme}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : (
-                  <div className="space-y-3 sm:space-y-6">
-                    {result.extractive?.key_sentences?.map((sentence, i) => (
-                      <div key={i} className="flex gap-3 sm:gap-5 bg-gray-950 p-3 sm:p-4 md:p-6 rounded-lg sm:rounded-2xl border border-gray-800 group">
-                        <div className="w-7 sm:w-8 h-7 sm:h-8 rounded-full bg-teal-900 flex-shrink-0 flex items-center justify-center font-bold text-xs sm:text-sm">
-                          {i + 1}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm sm:text-base text-gray-200 leading-relaxed">
-                            {sentence.sentence}
-                          </p>
-                          <div className="mt-2 sm:mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
-                            <div className="flex gap-2 sm:gap-4 text-xs text-gray-500 flex-wrap">
-                              <span>Score: <span className="text-teal-400">{sentence.score.toFixed(3)}</span></span>
-                              <span>Rank: <span className="text-teal-400">#{sentence.rank}</span></span>
-                              <span>Position: <span className="text-teal-400">{sentence.original_position}</span></span>
-                            </div>
-                            <button
-                              onClick={() => copyToClipboard(sentence.sentence, `sent-${filename}-${i}`)}
-                              className="text-teal-400 hover:text-teal-300 inline-flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg hover:bg-gray-800 transition-all text-xs sm:text-sm whitespace-nowrap"
-                              title={copiedId === `sent-${filename}-${i}` ? "Copied!" : "Copy sentence"}
-                            >
-                              {copiedId === `sent-${filename}-${i}` ? (
-                                <Check size={14} className="text-green-400" />
-                              ) : (
-                                <Copy size={14} />
-                              )}
-                              <span className="hidden sm:inline">Copy</span>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Export Buttons */}
-              <div className="bg-gray-950 border-t border-gray-800 px-4 sm:px-6 md:px-8 py-3 sm:py-4 flex flex-col sm:flex-row gap-2 sm:gap-3">
-                <button
-                  onClick={() => copyAllResults(result)}
-                  className="flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-800 hover:bg-gray-700 rounded-lg transition text-xs sm:text-sm font-medium text-gray-300 flex-1 sm:flex-none"
-                  title="Copy both summary and all key sentences"
-                >
-                  <Copy size={16} />
-                  <span>Copy All</span>
-                </button>
-                <button
-                  onClick={() => exportAsText(filename, result.abstractive_summary || "", result.extractive?.key_sentences || [])}
-                  className="flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-800 hover:bg-gray-700 rounded-lg transition text-xs sm:text-sm font-medium text-gray-300 flex-1 sm:flex-none"
-                  title="Export as text file"
-                >
-                  <FileText size={16} />
-                  <span>Export TXT</span>
-                </button>
-                <button
-                  onClick={() => exportAsPDF(filename)}
-                  className="flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-teal-700 hover:bg-teal-600 rounded-lg transition text-xs sm:text-sm font-medium text-white flex-1 sm:flex-none"
-                  title="Export as PDF"
-                >
-                  <Download size={16} />
-                  <span>Export PDF</span>
-                </button>
               </div>
             </div>
-          );
-        })}
+
+            {/* Synthesis Content */}
+            <div className="p-4 sm:p-6 md:p-8">
+              <div className="relative">
+                <button
+                  onClick={() => copyToClipboard(data.overall_synthesis || "", 'synthesis')}
+                  className="absolute top-2 right-2 text-teal-400 hover:text-teal-300 flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 rounded-lg hover:bg-gray-800 transition-all text-xs sm:text-sm"
+                  title={copiedId === 'synthesis' ? "Copied!" : "Copy synthesis"}
+                >
+                  {copiedId === 'synthesis' ? (
+                    <Check size={16} className="text-green-400" />
+                  ) : (
+                    <Copy size={16} />
+                  )}
+                  <span className="hidden sm:inline">Copy</span>
+                </button>
+                <p className="text-base sm:text-lg text-gray-200 leading-relaxed pr-12 sm:pr-24">
+                  {data.overall_synthesis || "No synthesis available."}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Individual Results Tab Content */}
+        {activeTab === 'results' && (
+          <>
+            {data.results.map((result, index) => {
+              const filename = result.filename;
+              const docActiveTab = getActiveTab(filename);
+              const metrics = calculateMetrics(
+                result.abstractive_summary || "", 
+                result.extractive?.key_sentences?.length || 0
+              );
+              const themes = themesData[filename] || [];
+              const isLoadingThemes = loadingThemes[filename] || false;
+
+              return (
+                <div key={index} className="mb-8 sm:mb-12 bg-gray-900 border border-gray-800 rounded-2xl sm:rounded-3xl overflow-hidden">
+                  {/* File Header */}
+                  <div className="bg-gray-950 px-4 sm:px-6 md:px-8 py-4 sm:py-5 border-b border-gray-800 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4">
+                    <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+                      <div className="text-2xl sm:text-3xl flex-shrink-0">📄</div>
+                      <div className="min-w-0">
+                        <h3 className="font-semibold text-lg sm:text-xl truncate">{filename}</h3>
+                        {result.error && <p className="text-red-400 text-xs sm:text-sm mt-1">{result.error}</p>}
+                      </div>
+                    </div>
+                    <div className="text-xs sm:text-sm text-gray-400 flex-shrink-0">
+                      {result.extractive?.total_extracted || 0} key sentences extracted
+                    </div>
+                  </div>
+
+                  {/* Tabs */}
+                  <div className="flex border-b border-gray-800 overflow-x-auto">
+                    <button
+                      onClick={() => setActiveDocTab(filename, 'summary')}
+                      className={`flex-1 py-3 sm:py-4 font-medium transition text-xs sm:text-sm md:text-base whitespace-nowrap ${
+                        docActiveTab === 'summary' ? 'text-teal-400 border-b-2 border-teal-400' : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      Abstractive Summary (BART)
+                    </button>
+                    <button
+                      onClick={() => setActiveDocTab(filename, 'extractive')}
+                      className={`flex-1 py-3 sm:py-4 font-medium transition text-xs sm:text-sm md:text-base whitespace-nowrap ${
+                        docActiveTab === 'extractive' ? 'text-teal-400 border-b-2 border-teal-400' : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      Extractive Key Sentences (TextRank)
+                    </button>
+                  </div>
+
+                  {/* Metrics Display */}
+                  <div className="bg-gray-950 border-b border-gray-800 px-4 sm:px-6 md:px-8 py-3 sm:py-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
+                      <div className="bg-gray-900 rounded-lg p-2 sm:p-3">
+                        <p className="text-xs text-gray-400">ROUGE-1</p>
+                        <p className="text-base sm:text-lg font-semibold text-teal-400">{metrics.rouge1}</p>
+                      </div>
+                      <div className="bg-gray-900 rounded-lg p-2 sm:p-3">
+                        <p className="text-xs text-gray-400">ROUGE-2</p>
+                        <p className="text-base sm:text-lg font-semibold text-teal-400">{metrics.rouge2}</p>
+                      </div>
+                      <div className="bg-gray-900 rounded-lg p-2 sm:p-3">
+                        <p className="text-xs text-gray-400">ROUGE-L</p>
+                        <p className="text-base sm:text-lg font-semibold text-teal-400">{metrics.rougeL}</p>
+                      </div>
+                      <div className="bg-gray-900 rounded-lg p-2 sm:p-3">
+                        <p className="text-xs text-gray-400">Summary Length</p>
+                        <p className="text-base sm:text-lg font-semibold text-purple-400">{metrics.summaryLength} words</p>
+                      </div>
+                      <div className="bg-gray-900 rounded-lg p-2 sm:p-3">
+                        <p className="text-xs text-gray-400">Compression</p>
+                        <p className="text-base sm:text-lg font-semibold text-blue-400">{metrics.compressionRatio}%</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Content Area */}
+                  <div 
+                    className="p-4 sm:p-6 md:p-8"
+                    data-export={filename}
+                  >
+                    {docActiveTab === 'summary' ? (
+                      <div className="space-y-4 sm:space-y-6">
+                        {/* Summary Section */}
+                        <div className="relative">
+                          <button
+                            onClick={() => copyToClipboard(result.abstractive_summary || "", `summary-${filename}`)}
+                            className="absolute top-2 right-2 text-teal-400 hover:text-teal-300 flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 rounded-lg hover:bg-gray-800 transition-all text-xs sm:text-sm"
+                            title={copiedId === `summary-${filename}` ? "Copied!" : "Copy summary"}
+                          >
+                            {copiedId === `summary-${filename}` ? (
+                              <Check size={16} className="text-green-400" />
+                            ) : (
+                              <Copy size={16} />
+                            )}
+                            <span className="hidden sm:inline">Copy</span>
+                          </button>
+                          <p className="text-base sm:text-lg text-gray-200 leading-relaxed pr-12 sm:pr-24">
+                            {result.abstractive_summary || "No summary available."}
+                          </p>
+                        </div>
+
+                        {/* Key Themes Section */}
+                        {isLoadingThemes ? (
+                          <div>
+                            <h4 className="text-xs sm:text-sm font-semibold text-gray-400 mb-2 sm:mb-3">Key Themes</h4>
+                            <div className="flex gap-2">
+                              {[1, 2, 3].map((i) => (
+                                <div key={i} className="h-6 sm:h-7 w-16 sm:w-20 bg-gray-800 rounded-full animate-pulse"></div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : themes.length > 0 ? (
+                          <div>
+                            <h4 className="text-xs sm:text-sm font-semibold text-gray-400 mb-2 sm:mb-3">Key Themes</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {themes.map((theme, i) => (
+                                <span
+                                  key={i}
+                                  className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-teal-900/40 text-teal-300 text-xs sm:text-sm rounded-full border border-teal-700/50 hover:bg-teal-900/60 transition"
+                                >
+                                  #{theme}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <div className="space-y-3 sm:space-y-6">
+                        {result.extractive?.key_sentences?.map((sentence, i) => (
+                          <div key={i} className="flex gap-3 sm:gap-5 bg-gray-950 p-3 sm:p-4 md:p-6 rounded-lg sm:rounded-2xl border border-gray-800 group">
+                            <div className="w-7 sm:w-8 h-7 sm:h-8 rounded-full bg-teal-900 flex-shrink-0 flex items-center justify-center font-bold text-xs sm:text-sm">
+                              {i + 1}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm sm:text-base text-gray-200 leading-relaxed">
+                                {sentence.sentence}
+                              </p>
+                              <div className="mt-2 sm:mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+                                <div className="flex gap-2 sm:gap-4 text-xs text-gray-500 flex-wrap">
+                                  <span>Score: <span className="text-teal-400">{sentence.score.toFixed(3)}</span></span>
+                                  <span>Rank: <span className="text-teal-400">#{sentence.rank}</span></span>
+                                  <span>Position: <span className="text-teal-400">{sentence.original_position}</span></span>
+                                </div>
+                                <button
+                                  onClick={() => copyToClipboard(sentence.sentence, `sent-${filename}-${i}`)}
+                                  className="text-teal-400 hover:text-teal-300 inline-flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg hover:bg-gray-800 transition-all text-xs sm:text-sm whitespace-nowrap"
+                                  title={copiedId === `sent-${filename}-${i}` ? "Copied!" : "Copy sentence"}
+                                >
+                                  {copiedId === `sent-${filename}-${i}` ? (
+                                    <Check size={14} className="text-green-400" />
+                                  ) : (
+                                    <Copy size={14} />
+                                  )}
+                                  <span className="hidden sm:inline">Copy</span>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Export Buttons */}
+                  <div className="bg-gray-950 border-t border-gray-800 px-4 sm:px-6 md:px-8 py-3 sm:py-4 flex flex-col sm:flex-row gap-2 sm:gap-3">
+                    <button
+                      onClick={() => copyAllResults(result)}
+                      className="flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-800 hover:bg-gray-700 rounded-lg transition text-xs sm:text-sm font-medium text-gray-300 flex-1 sm:flex-none"
+                      title="Copy both summary and all key sentences"
+                    >
+                      <Copy size={16} />
+                      <span>Copy All</span>
+                    </button>
+                    <button
+                      onClick={() => exportAsText(filename, result.abstractive_summary || "", result.extractive?.key_sentences || [])}
+                      className="flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-800 hover:bg-gray-700 rounded-lg transition text-xs sm:text-sm font-medium text-gray-300 flex-1 sm:flex-none"
+                      title="Export as text file"
+                    >
+                      <FileText size={16} />
+                      <span>Export TXT</span>
+                    </button>
+                    <button
+                      onClick={() => exportAsPDF(filename)}
+                      className="flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-teal-700 hover:bg-teal-600 rounded-lg transition text-xs sm:text-sm font-medium text-white flex-1 sm:flex-none"
+                      title="Export as PDF"
+                    >
+                      <Download size={16} />
+                      <span>Export PDF</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </>
+        )}
       </div>
 
       {/* Footer */}

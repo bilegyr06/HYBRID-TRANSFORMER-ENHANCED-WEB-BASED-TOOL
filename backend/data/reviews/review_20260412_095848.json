@@ -1,0 +1,141 @@
+{
+  "id": "review_20260412_095848",
+  "title": "textrank review",
+  "date": "2026-04-12T09:58:48.243585",
+  "processed_files": 3,
+  "results": [
+    {
+      "filename": "abstract2_test.txt",
+      "extractive": {
+        "key_sentences": [
+          {
+            "sentence": "Climate change poses significant challenges to global food security, yet many current models fail to capture the complexity of regional adaptation strategies.",
+            "score": 0.296834,
+            "rank": 1,
+            "original_position": 0,
+            "components": {}
+          },
+          {
+            "sentence": "This paper introduces a multi‑agent simulation framework that integrates economic, ecological, and social variables to predict agricultural resilience under varying climate scenarios.",
+            "score": 0.267491,
+            "rank": 2,
+            "original_position": 1,
+            "components": {}
+          },
+          {
+            "sentence": "Our experiments reveal that mid‑sized farming communities adopting cooperative resource‑sharing outperform both small independent farms and large industrial operations in long‑term sustainability.",
+            "score": 0.2,
+            "rank": 3,
+            "original_position": 2,
+            "components": {}
+          },
+          {
+            "sentence": "Interestingly, the results also show that technological innovation alone is insufficient without parallel investment in social infrastructure.",
+            "score": 0.228146,
+            "rank": 4,
+            "original_position": 3,
+            "components": {}
+          },
+          {
+            "sentence": "We conclude by highlighting policy implications for governments seeking to balance innovation funding with community‑level support programs.",
+            "score": 0.257332,
+            "rank": 5,
+            "original_position": 4,
+            "components": {}
+          }
+        ],
+        "total_extracted": 5
+      },
+      "abstractive_summary": "Climate change poses significant challenges to global food security, yet many current models fail to capture the complexity of regional adaptation strategies . This paper introduces a multi‑agent simulation framework that integrates economic, ecological, and social variables to predict agricultural resilience under varying climate scenarios ."
+    },
+    {
+      "filename": "abstract3_test.txt",
+      "extractive": {
+        "key_sentences": [
+          {
+            "sentence": "The rapid growth of scientific literature has made manual review increasingly difficult for researchers.",
+            "score": 0.181483,
+            "rank": 1,
+            "original_position": 0,
+            "components": {}
+          },
+          {
+            "sentence": "Traditional methods rely on reading abstracts and full texts, which is time-consuming and prone to bias.",
+            "score": 0.161381,
+            "rank": 2,
+            "original_position": 1,
+            "components": {}
+          },
+          {
+            "sentence": "Abstractive models such as BART generate novel summaries but risk hallucinations without grounding.",
+            "score": 0.173124,
+            "rank": 3,
+            "original_position": 4,
+            "components": {}
+          },
+          {
+            "sentence": "This work proposes a hybrid approach combining TextRank for faithful extraction with fine-tuned transformers for coherent multi-document abstraction.",
+            "score": 0.185404,
+            "rank": 4,
+            "original_position": 5,
+            "components": {}
+          },
+          {
+            "sentence": "Experiments on arXiv abstracts show improved ROUGE scores and theme coverage compared to single-method baselines.",
+            "score": 0.2543,
+            "rank": 5,
+            "original_position": 6,
+            "components": {}
+          }
+        ],
+        "total_extracted": 5
+      },
+      "abstractive_summary": "Traditional methods rely on reading abstracts and full texts, which is time-consuming and prone to bias . This work proposes a hybrid approach combining TextRank for faithful extraction with fine-tuned transformers for coherent multi-document abstraction . Experiments on arXiv abstracts show improved ROUGE scores and theme coverage compared to single-method baselines ."
+    },
+    {
+      "filename": "legal textrank abs.txt",
+      "extractive": {
+        "key_sentences": [
+          {
+            "sentence": "In the proposed approach, TextRank and Legal Pegasus are integrated to improve the performance.",
+            "score": 0.151673,
+            "rank": 1,
+            "original_position": 8,
+            "components": {}
+          },
+          {
+            "sentence": "This is done by comparing the summaries generated and the reference summaries provided in the dataset.",
+            "score": 0.136812,
+            "rank": 2,
+            "original_position": 10,
+            "components": {}
+          },
+          {
+            "sentence": "Experimental results show that TextRank achieves ROUGE-1, ROUGE-2, and ROUGE-L scores of $0.2159,0.1633$, and 0.1366, respectively, while LexRank provides 0.1966, 0.1071, and 0.127.",
+            "score": 0.174335,
+            "rank": 3,
+            "original_position": 11,
+            "components": {}
+          },
+          {
+            "sentence": "The proposed approach which integrates TextRank and Legal Pegasus outperforms the individual TextRank and Legl Pegasus models.",
+            "score": 0.195303,
+            "rank": 4,
+            "original_position": 13,
+            "components": {}
+          },
+          {
+            "sentence": "It achieves ROUGE-1, ROUGE-2, and ROUGE-L scores of 0.2795, 0.1383, and 0.1677, thus contributing improved structural preservation and content overlap.",
+            "score": 0.182356,
+            "rank": 5,
+            "original_position": 14,
+            "components": {}
+          }
+        ],
+        "total_extracted": 5
+      },
+      "abstractive_summary": "In the proposed approach, TextRank and Legal Pegasus are integrated to improve the performance . TextRank achieves ROUGE-1, RouGE-2, and Rouge-L scores of $0.2159,0.1633$, and 0.1366, respectively, while LexRank provides 0.1966, 0.1071, and  0.127.127 ."
+    }
+  ],
+  "overall_synthesis": "Climate change poses significant challenges to global food security, yet many current models fail to capture the complexity of regional adaptation strategies . Traditional methods rely on reading abstracts and full texts, which is time-consuming and prone to bias . This work proposes a hybrid approach combining TextRank for faithful extraction with fine-tuned transformers for coherent multi-document abstraction ."
+}

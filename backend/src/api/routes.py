@@ -4,6 +4,7 @@ import pdfplumber
 from typing import List
 from pydantic import BaseModel
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 
@@ -12,12 +13,16 @@ from src.services.text_rank_service_improved import TextRankService
 from src.services.summarizer_service import SummarizerService
 from src.services.tfidf_service import get_theme_service
 
+# Configure logging
+logger = logging.getLogger(__name__)
+
 REVIEWS_DIR = Path("data/reviews")
 REVIEWS_DIR.mkdir(parents=True, exist_ok=True)
 
 class ReviewSaveRequest(BaseModel):
     title: str
     results: list
+    overall_synthesis: str | None = None
 
 class ProcessRequest(BaseModel):
     filenames: List[str] = []
@@ -132,10 +137,23 @@ async def process_documents(request: ProcessRequest):
         except Exception as e:
             results.append({"filename": file_path.name, "error": str(e)})
 
+    # Generate cross-document synthesis if 2+ documents processed successfully
+    overall_synthesis = None
+    successful_results = [r for r in results if "error" not in r]
+    
+    if len(successful_results) >= 2:
+        try:
+            overall_synthesis = summarizer.synthesize_documents(successful_results)
+            logger.info(f"Generated synthesis for {len(successful_results)} documents")
+        except Exception as e:
+            logger.error(f"Failed to generate synthesis: {str(e)}")
+            # Synthesis failure doesn't block the response, just omit it
+
     return {
         "status": "success",
         "processed_files": len(results),
-        "results": results
+        "results": results,
+        "overall_synthesis": overall_synthesis
     }
 
 
@@ -171,7 +189,8 @@ async def save_review(request: ReviewSaveRequest):
         "title": request.title,
         "date": datetime.now().isoformat(),
         "processed_files": len(request.results),
-        "results": request.results
+        "results": request.results,
+        "overall_synthesis": request.overall_synthesis
     }
     
     file_path = REVIEWS_DIR / f"{review_id}.json"
