@@ -1,6 +1,6 @@
 // frontend/src/pages/ResultsPage.tsx
 import { useState, useEffect } from 'react';
-import { Copy, Check, Download, FileText } from 'lucide-react';
+import { Copy, Check, Download, FileText, Clipboard } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ProcessResponse } from '../types';
 import { extractThemes } from '../lib/api';
@@ -232,7 +232,7 @@ ${result.extractive?.key_sentences?.map((s: any) => s.sentence).join('\n\n')}
             <div className="bg-gray-950 px-4 sm:px-6 md:px-8 py-4 sm:py-5 border-b border-gray-800">
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4">
                 <div className="flex items-center gap-2 sm:gap-4">
-                  <div className="text-2xl sm:text-3xl flex-shrink-0">✨</div>
+                  <div className="text-2xl sm:text-3xl flex-shrink-0"><Clipboard className="w-6 h-6 sm:w-7 sm:h-7 flex-shrink-0 text-teal-400" /></div>
                   <div>
                     <h2 className="font-semibold text-lg sm:text-xl">Cross-Document Synthesis</h2>
                     <p className="text-xs sm:text-sm text-gray-400 mt-1">Unified insights from all papers</p>
@@ -484,7 +484,7 @@ ${result.extractive?.key_sentences?.map((s: any) => s.sentence).join('\n\n')}
                 disabled={!reviewTitle.trim()}
                 className="w-full px-6 py-3 bg-teal-600 hover:bg-teal-500 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-lg transition text-white font-medium text-[0.9em] duration-200"
               >
-                💾 Save Review
+                Save Review
               </button>
               <button
                 onClick={onGoToMyReviews}

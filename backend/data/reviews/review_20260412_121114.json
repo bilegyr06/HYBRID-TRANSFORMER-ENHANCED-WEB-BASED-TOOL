@@ -1,0 +1,97 @@
+{
+  "id": "review_20260412_121114",
+  "title": "ddfdfdf",
+  "date": "2026-04-12T12:11:14.556556",
+  "processed_files": 2,
+  "results": [
+    {
+      "filename": "abstract_test.txt",
+      "extractive": {
+        "key_sentences": [
+          {
+            "sentence": "This is an ai generated text and I made it using microsoft copilot.",
+            "score": 0.181769,
+            "rank": 1,
+            "original_position": 0,
+            "components": {}
+          },
+          {
+            "sentence": "Recent advances in natural language processing have highlighted the potential of hybrid extractive–abstractive summarization techniques for improving academic literature review workflows.",
+            "score": 0.193057,
+            "rank": 2,
+            "original_position": 1,
+            "components": {}
+          },
+          {
+            "sentence": "In this study, we propose a framework that integrates graph-based ranking algorithms with transformer-based sequence models to automatically identify and condense salient information from large collections of scientific texts.",
+            "score": 0.22189,
+            "rank": 3,
+            "original_position": 2,
+            "components": {}
+          },
+          {
+            "sentence": "Experimental results demonstrate that the hybrid approach outperforms baseline extractive methods in terms of semantic coverage and user satisfaction, while maintaining computational efficiency suitable for real-time applications.",
+            "score": 0.239415,
+            "rank": 4,
+            "original_position": 4,
+            "components": {}
+          },
+          {
+            "sentence": "These findings suggest that combining statistical and neural strategies can significantly enhance automated knowledge synthesis, offering practical benefits for researchers navigating increasingly complex scholarly domains.",
+            "score": 0.253379,
+            "rank": 5,
+            "original_position": 5,
+            "components": {}
+          }
+        ],
+        "total_extracted": 5
+      },
+      "abstractive_summary": "Recent advances in natural language processing have highlighted the potential of hybrid extractive–abstractive summarization techniques for improving academic literature review workflows . Summarize the following key insights from multiple academic papers in a coherent, concise paragraph focusing on main themes and findings ."
+    },
+    {
+      "filename": "abstract_test_14lines.txt",
+      "extractive": {
+        "key_sentences": [
+          {
+            "sentence": "This study explores the application of the TextRank algorithm for automatic text summarization in a backend service environment.",
+            "score": 0.155231,
+            "rank": 1,
+            "original_position": 0,
+            "components": {}
+          },
+          {
+            "sentence": "TextRank is a graph-based ranking model that identifies the most important sentences in a document using structural relationships rather than supervised learning.",
+            "score": 0.246612,
+            "rank": 2,
+            "original_position": 1,
+            "components": {}
+          },
+          {
+            "sentence": "In this work, sentences are represented as nodes in a graph, while edges are constructed using cosine similarity derived from TF-IDF vectorization.",
+            "score": 0.175766,
+            "rank": 3,
+            "original_position": 2,
+            "components": {}
+          },
+          {
+            "sentence": "Experimental observations show that combining TF-IDF similarity with graph-based ranking produces coherent and relevant summaries without the need for labeled data.",
+            "score": 0.335148,
+            "rank": 4,
+            "original_position": 11,
+            "components": {}
+          },
+          {
+            "sentence": "Overall, the approach provides a practical and efficient solution for unsupervised text summarization in real-world applications.",
+            "score": 0.124215,
+            "rank": 5,
+            "original_position": 13,
+            "components": {}
+          }
+        ],
+        "total_extracted": 5
+      },
+      "abstractive_summary": "TextRank is a graph-based ranking model that identifies the most important sentences in a document using structural relationships rather than supervised learning . In this work, sentences are represented as nodes in a graph, while edges are constructed using cosine similarity derived from TF-IDF vectorization ."
+    }
+  ],
+  "overall_synthesis": "Recent advances in natural language processing have highlighted the potential of hybrid extractive–abstractive summarization techniques for improving academic literature review workflows . Synthesize the following key insights from multiple academic papers into one coherent, unified summary that captures the main themes and findings ."
+}
