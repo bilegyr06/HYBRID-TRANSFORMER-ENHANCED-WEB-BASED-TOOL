@@ -177,50 +177,23 @@ ${result.extractive?.key_sentences?.map((s: any) => s.sentence).join('\n\n')}
 
   return (
     <div className="min-h-screen bg-gray-950 text-white pb-12">
-      {/* Header */}
+      {/* Minimal Header */}
       <div className="border-b border-gray-800 bg-gray-900">
-        <div className="max-w-full md:max-w-6xl mx-auto px-4 sm:px-6 md:px-8 py-4 sm:py-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold">Literature Review Results</h1>
-            <p className="text-gray-400 text-sm sm:text-base">
-              Processed {data.processed_files} document{data.processed_files !== 1 ? 's' : ''}
-            </p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+        <div className="max-w-full md:max-w-6xl mx-auto px-4 sm:px-6 md:px-8 py-3 sm:py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-[1em] font-bold">Analysis Results</h1>
+              <p className="text-gray-400 text-[0.85em]">
+                {data.processed_files} document{data.processed_files !== 1 ? 's' : ''} • {data.results.length} analyzed
+              </p>
+            </div>
             <button
               onClick={onBack}
-              className="px-3 sm:px-6 py-2 sm:py-3 border border-gray-700 hover:bg-gray-800 rounded-xl transition text-sm sm:text-base whitespace-nowrap"
+              className="text-gray-400 hover:text-teal-400 transition text-[0.9em] flex items-center gap-1"
             >
-              ← Back to Upload
-            </button>
-            <button
-              onClick={onGoToMyReviews}
-              className="px-3 sm:px-6 py-2 sm:py-3 border border-gray-700 hover:bg-gray-800 rounded-xl transition text-sm sm:text-base whitespace-nowrap"
-            >
-              My Reviews
-            </button>
-            <button
-              onClick={onSaveReview}
-              disabled={!reviewTitle.trim()}
-              className="px-3 sm:px-6 py-2 sm:py-3 bg-teal-600 hover:bg-teal-500 disabled:bg-gray-700 rounded-xl transition text-sm sm:text-base whitespace-nowrap"
-            >
-              Save Review
+              ← Back
             </button>
           </div>
-        </div>
-      </div>
-
-      {/* Save Title Input */}
-      <div className="max-w-full md:max-w-6xl mx-auto px-4 sm:px-6 md:px-8 py-4 sm:py-6">
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 sm:p-6">
-          <label className="block text-xs sm:text-sm text-gray-400 mb-2">Review Title (optional)</label>
-          <input
-            type="text"
-            value={reviewTitle}
-            onChange={(e) => setReviewTitle(e.target.value)}
-            placeholder="e.g. Transformer Models in Healthcare - March 2026"
-            className="w-full bg-gray-950 border border-gray-700 rounded-xl px-4 sm:px-5 py-2 sm:py-3 text-white text-sm sm:text-base focus:outline-none focus:border-teal-500"
-          />
         </div>
       </div>
 
@@ -489,9 +462,39 @@ ${result.extractive?.key_sentences?.map((s: any) => s.sentence).join('\n\n')}
         )}
       </div>
 
-      {/* Footer */}
-      <div className="text-center text-gray-500 text-sm mt-16">
-        Hybrid TextRank + BART Pipeline • Deji Ayodeji • Covenant University FYP 2025/2026
+      {/* Contextual Save Review Section at Bottom */}
+      <div className="border-t border-gray-800 bg-gray-900 mt-8 sm:mt-12">
+        <div className="max-w-full md:max-w-6xl mx-auto px-4 sm:px-6 md:px-8 py-8 sm:py-10">
+          <h2 className="text-[1em] font-bold mb-6 text-center">Save This Review</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
+            <div>
+              <label className="block text-[0.85em] text-gray-400 mb-3">Review Title (optional)</label>
+              <input
+                type="text"
+                value={reviewTitle}
+                onChange={(e) => setReviewTitle(e.target.value)}
+                placeholder="e.g. Transformer Models in Healthcare - March 2026"
+                className="w-full bg-gray-950 border border-gray-700 rounded-lg px-4 py-2 text-white text-[0.9em] focus:outline-none focus:border-teal-500 transition"
+              />
+              <p className="text-[0.75em] text-gray-500 mt-2">Leave blank for auto-generated title</p>
+            </div>
+            <div className="flex flex-col justify-end gap-3">
+              <button
+                onClick={onSaveReview}
+                disabled={!reviewTitle.trim()}
+                className="w-full px-6 py-3 bg-teal-600 hover:bg-teal-500 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-lg transition text-white font-medium text-[0.9em] duration-200"
+              >
+                💾 Save Review
+              </button>
+              <button
+                onClick={onGoToMyReviews}
+                className="w-full px-6 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition text-gray-200 font-medium text-[0.9em] duration-200"
+              >
+                View My Reviews
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

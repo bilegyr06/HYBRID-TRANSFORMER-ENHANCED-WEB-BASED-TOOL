@@ -66,17 +66,9 @@ export default function MyReviewsPage({ onBack, onViewReview }: MyReviewsPagePro
     <div className="min-h-screen bg-gray-950 text-white">
       {/* Header */}
       <div className="border-b border-gray-800 bg-gray-900">
-        <div className="max-w-full md:max-w-6xl mx-auto px-4 sm:px-6 md:px-8 py-4 sm:py-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold">My Reviews</h1>
-            <p className="text-gray-400 text-sm sm:text-base">Previously processed literature reviews</p>
-          </div>
-          <button
-            onClick={onBack}
-            className="px-4 py-2.5 sm:px-6 sm:py-3 border border-gray-700 hover:bg-gray-800 rounded-xl transition text-sm sm:text-base whitespace-nowrap"
-          >
-            ← Back to Upload
-          </button>
+        <div className="max-w-full md:max-w-6xl mx-auto px-4 sm:px-6 md:px-8 py-4 sm:py-6">
+          <h1 className="text-[1em] font-bold">My Reviews</h1>
+          <p className="text-gray-400 text-[0.85em]">Previously processed literature reviews</p>
         </div>
       </div>
 

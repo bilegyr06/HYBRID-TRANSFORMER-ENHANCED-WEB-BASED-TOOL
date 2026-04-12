@@ -90,30 +90,21 @@ export default function UploadPage({ onProcessComplete, onGoToMyReviews }: Uploa
     <div className="min-h-screen bg-gray-950 text-white">
       {/* Header */}
       <div className="border-b border-gray-800 bg-gray-900">
-        <div className="max-w-full md:max-w-6xl mx-auto px-4 sm:px-6 md:px-8 py-4 sm:py-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold">Automated Literature Review Assistant</h1>
-            <p className="text-gray-400 mt-1 text-sm sm:text-base">Hybrid TextRank + BART • Extract insights from research papers</p>
-          </div>
-          <button 
-            onClick={onGoToMyReviews}
-            className="px-4 py-2.5 sm:px-6 sm:py-3 border border-gray-700 hover:bg-gray-800 rounded-xl transition whitespace-nowrap text-sm sm:text-base"
-          >
-            My Reviews
-          </button>
+        <div className="max-w-full md:max-w-6xl mx-auto px-4 sm:px-6 md:px-8 py-4 sm:py-6">
+          <h1 className="text-[1em] font-bold">Upload & Process Papers</h1>
+          <p className="text-gray-400 mt-1 text-[0.85em]">Hybrid TextRank + BART • Extract insights from research papers</p>
         </div>
       </div>
 
       <div className="max-w-full md:max-w-6xl mx-auto px-4 sm:px-6 md:px-8 py-8 sm:py-12 grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 md:gap-10">
         {/* Upload Area */}
-        <div className="">
-          <div
-            className={`border-2 border-dashed rounded-2xl sm:rounded-3xl p-6 sm:p-8 md:p-12 lg:p-16 text-center transition-all min-h-[320px] sm:min-h-[380px] md:min-h-[420px] flex flex-col items-center justify-center
-              ${isDragging ? 'border-teal-500 bg-teal-950/30' : 'border-gray-700 hover:border-gray-600'}`}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-          >
+        <div
+          className={`border-2 border-dashed rounded-2xl sm:rounded-3xl p-6 sm:p-8 md:p-12 lg:p-16 text-center transition-all min-h-[320px] sm:min-h-[380px] md:min-h-[420px] flex flex-col items-center justify-center
+            ${isDragging ? 'border-teal-500 bg-teal-950/30' : 'border-gray-700 hover:border-gray-600'}`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
             <div className="text-teal-500 text-5xl sm:text-6xl lg:text-7xl mb-4 sm:mb-6">↑</div>
             <h3 className="text-xl sm:text-2xl font-semibold mb-2 sm:mb-3">Drop PDFs or TXT files here</h3>
             <p className="text-gray-400 mb-6 sm:mb-8 text-sm sm:text-base">Supports multiple files • Max 50MB per file</p>
@@ -128,7 +119,6 @@ export default function UploadPage({ onProcessComplete, onGoToMyReviews }: Uploa
                 onChange={handleFileSelect}
               />
             </label>
-          </div>
 
           {/* Selected Files */}
           {files.length > 0 && (
