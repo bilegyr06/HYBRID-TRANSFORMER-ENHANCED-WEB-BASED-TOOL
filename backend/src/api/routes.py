@@ -12,6 +12,7 @@ from src.core.config import settings
 from src.services.text_rank_service_improved import TextRankService
 from src.services.summarizer_service import SummarizerService
 from src.services.tfidf_service import get_theme_service
+from src.utils.rouge_calculator import calculate_metrics_batch
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -128,6 +129,7 @@ async def process_documents(request: ProcessRequest):
             
             results.append({
                 "filename": file_path.name,
+                "original_text": text,
                 "extractive": {
                     "key_sentences": key_sentences,
                     "total_extracted": len(key_sentences)
@@ -149,10 +151,23 @@ async def process_documents(request: ProcessRequest):
             logger.error(f"Failed to generate synthesis: {str(e)}")
             # Synthesis failure doesn't block the response, just omit it
 
+    # Calculate ROUGE metrics for all results
+    successful_results = calculate_metrics_batch(successful_results)
+    
+    # Rebuild results list with metrics  
+    results_with_metrics = []
+    for result in results:
+        if "error" not in result:
+            # Find the updated result with metrics
+            updated = next((r for r in successful_results if r.get('filename') == result.get('filename')), result)
+            results_with_metrics.append(updated)
+        else:
+            results_with_metrics.append(result)
+
     return {
         "status": "success",
         "processed_files": len(results),
-        "results": results,
+        "results": results_with_metrics,
         "overall_synthesis": overall_synthesis
     }
 

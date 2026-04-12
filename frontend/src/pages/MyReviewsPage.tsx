@@ -65,12 +65,14 @@ export default function MyReviewsPage({ onBack, onViewReview }: MyReviewsPagePro
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       {/* Header */}
-      <div className="border-b border-gray-800 bg-gray-900">
-        <div className="max-w-full md:max-w-6xl mx-auto px-4 sm:px-6 md:px-8 py-4 sm:py-6">
-          <h1 className="text-[1em] font-bold">My Reviews</h1>
-          <p className="text-gray-400 text-[0.85em]">Previously processed literature reviews</p>
+      <header className="border-b border-gray-800 bg-gray-900">
+        <div className="max-w-full md:max-w-6xl mx-auto px-4 sm:px-6 md:px-8 py-4 sm:py-5 md:py-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-4">
+            <h1 className="text-lg sm:text-xl md:text-2xl font-bold">My Reviews</h1>
+            <p className="text-gray-400 text-xs sm:text-sm md:text-base">Previously processed literature reviews</p>
+          </div>
         </div>
-      </div>
+      </header>
 
       <div className="max-w-full md:max-w-6xl mx-auto px-2 sm:px-6 md:px-8 py-8 sm:py-10">
         {loading && (

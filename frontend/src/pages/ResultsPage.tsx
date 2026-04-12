@@ -16,21 +16,6 @@ interface ResultsPageProps {
 
 type ViewTab = 'synthesis' | 'results';
 
-// Utility function to calculate mock ROUGE scores
-const calculateMetrics = (summary: string, sentences: number) => {
-  const words = summary.split(/\s+/).length;
-  
-  // Mock ROUGE scores (in real scenario, these come from backend)
-  return {
-    rouge1: (0.65 + Math.random() * 0.25).toFixed(3),
-    rouge2: (0.45 + Math.random() * 0.25).toFixed(3),
-    rougeL: (0.60 + Math.random() * 0.25).toFixed(3),
-    summaryLength: words,
-    extractedSentences: sentences,
-    compressionRatio: ((1 - words / (sentences * 25)) * 100).toFixed(1)
-  };
-};
-
 // Utility function to export all results as text
 const exportAsText = (filename: string, summary: string, sentences: any[]) => {
   const content = `
@@ -107,6 +92,7 @@ export default function ResultsPage({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [themesData, setThemesData] = useState<Record<string, string[]>>({});
   const [loadingThemes, setLoadingThemes] = useState<Record<string, boolean>>({});
+  const [metricsCache, setMetricsCache] = useState<Record<string, {rouge1: number; rouge2: number; rougeL: number; summaryLength: number; extractedSentences: number; compressionRatio: string;}>>({})
 
   // Fetch themes for all results when data changes
   useEffect(() => {
@@ -137,6 +123,30 @@ export default function ResultsPage({
     };
 
     fetchAllThemes();
+  }, [data]);
+
+  // Calculate and cache metrics once when data arrives
+  useEffect(() => {
+    if (!data) return;
+
+    const cache: Record<string, any> = {};
+    data.results.forEach((result) => {
+      const words = (result.abstractive_summary || "").split(/\s+/).length;
+      const sentences = result.extractive?.key_sentences?.length || 0;
+      
+      cache[result.filename] = {
+        rouge1: result.metrics?.rouge1 || 0,
+        rouge2: result.metrics?.rouge2 || 0,
+        rougeL: result.metrics?.rougeL || 0,
+        summaryLength: words,
+        extractedSentences: sentences,
+        compressionRatio: sentences > 0 
+          ? ((1 - words / (sentences * 25)) * 100).toFixed(1) 
+          : "0.0"
+      };
+    });
+    
+    setMetricsCache(cache);
   }, [data]);
 
   if (!data) {
@@ -178,30 +188,22 @@ ${result.extractive?.key_sentences?.map((s: any) => s.sentence).join('\n\n')}
   return (
     <div className="min-h-screen bg-gray-950 text-white pb-12">
       {/* Minimal Header */}
-      <div className="border-b border-gray-800 bg-gray-900">
+      <header className="border-b border-gray-800 bg-gray-900">
         <div className="max-w-full md:max-w-6xl mx-auto px-4 sm:px-6 md:px-8 py-3 sm:py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-[1em] font-bold">Analysis Results</h1>
-              <p className="text-gray-400 text-[0.85em]">
-                {data.processed_files} document{data.processed_files !== 1 ? 's' : ''} • {data.results.length} analyzed
-              </p>
-            </div>
-            <button
-              onClick={onBack}
-              className="text-gray-400 hover:text-teal-400 transition text-[0.9em] flex items-center gap-1"
-            >
-              ← Back
-            </button>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
+            <h1 className="text-[1em] font-bold">Analysis Results</h1>
+            <p className="text-gray-400 text-[0.85em] sm:text-right">
+              {data.processed_files} document{data.processed_files !== 1 ? 's' : ''} • {data.results.length} analyzed
+            </p>
           </div>
         </div>
-      </div>
+      </header>
 
       {/* Main Content Area */}
       <div className="max-w-full md:max-w-6xl mx-auto px-4 sm:px-6 md:px-8">
         {/* Top-level Tabs - Synthesis vs Results */}
         {hasSynthesis && (
-          <div className="flex gap-2 mb-6 border-b border-gray-800">
+          <div className="flex gap-2 mt-6 mb-6 border-b border-gray-800">
             <button
               onClick={() => setActiveTab('synthesis')}
               className={`py-3 sm:py-4 px-3 sm:px-6 font-medium transition text-sm sm:text-base ${
@@ -270,10 +272,7 @@ ${result.extractive?.key_sentences?.map((s: any) => s.sentence).join('\n\n')}
             {data.results.map((result, index) => {
               const filename = result.filename;
               const docActiveTab = getActiveTab(filename);
-              const metrics = calculateMetrics(
-                result.abstractive_summary || "", 
-                result.extractive?.key_sentences?.length || 0
-              );
+              const metrics = metricsCache[filename] || {rouge1: 0, rouge2: 0, rougeL: 0, summaryLength: 0, extractedSentences: 0, compressionRatio: "0.0"};
               const themes = themesData[filename] || [];
               const isLoadingThemes = loadingThemes[filename] || false;
 

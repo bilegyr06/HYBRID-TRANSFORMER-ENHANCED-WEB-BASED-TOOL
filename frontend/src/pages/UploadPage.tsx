@@ -89,12 +89,14 @@ export default function UploadPage({ onProcessComplete, onGoToMyReviews }: Uploa
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       {/* Header */}
-      <div className="border-b border-gray-800 bg-gray-900">
-        <div className="max-w-full md:max-w-6xl mx-auto px-4 sm:px-6 md:px-8 py-4 sm:py-6">
-          <h1 className="text-[1em] font-bold">Upload & Process Papers</h1>
-          <p className="text-gray-400 mt-1 text-[0.85em]">Hybrid TextRank + BART • Extract insights from research papers</p>
+      <header className="border-b border-gray-800 bg-gray-900">
+        <div className="max-w-full md:max-w-6xl mx-auto px-4 sm:px-6 md:px-8 py-4 sm:py-5 md:py-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-4">
+            <h1 className="text-lg sm:text-xl md:text-2xl font-bold">Upload</h1>
+            <p className="text-gray-400 text-xs sm:text-sm md:text-base">Hybrid TextRank + BART • Extract insights from research papers</p>
+          </div>
         </div>
-      </div>
+      </header>
 
       <div className="max-w-full md:max-w-6xl mx-auto px-4 sm:px-6 md:px-8 py-8 sm:py-12 grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 md:gap-10">
         {/* Upload Area */}

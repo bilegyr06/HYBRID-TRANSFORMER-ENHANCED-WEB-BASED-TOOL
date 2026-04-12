@@ -23,10 +23,17 @@ export interface ExtractiveResult {
   total_extracted: number;
 }
 
+export interface Metrics {
+  rouge1: number;
+  rouge2: number;
+  rougeL: number;
+}
+
 export interface ProcessResult {
   filename: string;
   extractive: ExtractiveResult;
   abstractive_summary: string;
+  metrics?: Metrics;
   error?: string;
 }
 
