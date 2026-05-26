@@ -1,6 +1,7 @@
-﻿from fastapi import APIRouter, UploadFile, HTTPException, File, Depends
+﻿from fastapi import APIRouter, UploadFile, HTTPException, File, Depends, status
 import shutil
 import importlib
+import os
 from typing import List
 from pydantic import BaseModel
 import logging
@@ -8,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from src.core.config import settings
 from src.core.database import get_db
+from src.core.error_handler import handle_error
 from src.models.user import User
 from src.schemas.reviews import SaveReviewRequest, SavedReviewResponse
 from src.schemas.analysis import AnalysisRequest
@@ -33,44 +35,6 @@ class ExtractThemesRequest(BaseModel):
 class ExtractThemesResponse(BaseModel):
     status: str
     themes: List[str]
-
-
-class CollectionExtractionRequest(BaseModel):
-    """Multi-document collection extraction request."""
-    documents: dict  # {doc_id: text}
-    coverage_target: float = 0.35
-    redundancy_threshold: float = 0.75
-    use_diversity_bonus: bool = True
-    use_position_bonus: bool = True
-
-
-class ExtractedSentence(BaseModel):
-    """Single extracted sentence with metadata."""
-    sentence: str
-    score: float
-    doc_id: str
-    sentence_id: int
-    rank: int
-    position_in_doc: int
-
-
-class CoverageStats(BaseModel):
-    """Collection coverage statistics."""
-    total_sentences_in_collection: int
-    coverage_percent: float
-    total_documents: int
-    docs_represented: List[str]
-    sentences_per_doc: dict
-    avg_score: float
-    min_score: float
-    max_score: float
-
-
-class CollectionExtractionResponse(BaseModel):
-    """Multi-document collection extraction response."""
-    extractive_sentences: List[ExtractedSentence]
-    total_sentences_selected: int
-    coverage_statistics: CoverageStats
 
 
 class SynthesizeRequest(BaseModel):
@@ -100,15 +64,39 @@ router = APIRouter(tags=["Upload & Process"])
 async def upload_documents(
     files: List[UploadFile] = File(..., description="Drag and drop or select PDF or TXT files")
 ):
-    """Drag-and-drop upload with better encoding handling."""
+    """Drag-and-drop upload with security validation (size limits, path traversal prevention)."""
     uploaded_files = []
+    total_size = 0
 
     for file in files:
         filename_lower = file.filename.lower()
         if not filename_lower.endswith(('.pdf', '.txt')):
             raise HTTPException(status_code=400, detail=f"Only .pdf and .txt allowed: {file.filename}")
 
-        file_path = settings.UPLOAD_DIR / file.filename
+        # Security: Validate file size (prevent DoS via massive uploads)
+        if file.size and file.size > settings.MAX_FILE_SIZE_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"File {file.filename} exceeds max size of {settings.MAX_FILE_SIZE_BYTES / (1024*1024):.0f}MB"
+            )
+        
+        total_size += file.size or 0
+        if total_size > settings.MAX_TOTAL_UPLOAD_SIZE_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Total upload size exceeds maximum of {settings.MAX_TOTAL_UPLOAD_SIZE_BYTES / (1024*1024):.0f}MB"
+            )
+
+        # Security: Sanitize filename (prevent path traversal attacks like ../../../etc/passwd)
+        sanitized_filename = os.path.basename(file.filename)
+        if not sanitized_filename or sanitized_filename != file.filename:
+            logger.warning(f"Path traversal attempt blocked: {file.filename}")
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid filename: path traversal not allowed"
+            )
+
+        file_path = settings.UPLOAD_DIR / sanitized_filename
 
         # Save file
         with file_path.open("wb") as buffer:
@@ -125,7 +113,8 @@ async def upload_documents(
             else:  # .txt
                 content_preview = file_path.read_text(encoding="utf-8", errors="ignore")
         except Exception as e:
-            content_preview = f"[Extraction failed: {str(e)}]"
+            logger.warning(f"Failed to extract preview for {sanitized_filename}: {e}")
+            content_preview = "[Extraction failed]"
 
         uploaded_files.append({
             "filename": file.filename,
@@ -181,8 +170,12 @@ async def process_documents(request: ProcessRequest):
             "synthesis_message": analysis_response.synthesis_message
         }
     except Exception as e:
-        logger.error(f"Process endpoint error: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
+        raise handle_error(
+            e,
+            "process documents with analysis pipeline",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            client_message="Failed to process documents. Please check your input and try again."
+        )
 
 
 @router.post("/extract-themes", response_model=ExtractThemesResponse)
@@ -209,86 +202,6 @@ async def extract_themes(request: ExtractThemesRequest):
 
 
 
-
-
-@router.post("/extract-collection", response_model=CollectionExtractionResponse)
-async def extract_collection_summary(request: CollectionExtractionRequest):
-    """
-    Extract key sentences from multiple documents using global TextRank.
-    
-    This endpoint implements multi-document extractive summarization:
-    - Builds a global similarity graph across all documents
-    - Computes PageRank scores across the entire collection
-    - Dynamically selects sentences targeting specified coverage (default 30-40%)
-    - Returns ranked sentences with document provenance and statistics
-    
-    Parameters:
-    - documents: Dict mapping doc_id to full text
-    - coverage_target: Target coverage ratio (0.30-0.40 recommended)
-    - redundancy_threshold: Minimum similarity to exclude duplicates (0-1)
-    - use_diversity_bonus: Boost sentences from underrepresented documents
-    - use_position_bonus: Boost sentences from start/end of documents
-    
-    Returns:
-    - Ranked extractive sentences with scores and metadata
-    - Coverage statistics showing per-document breakdown
-    - Quality metrics (avg/min/max scores)
-    
-    Example:
-    ```json
-    {
-        "documents": {
-            "paper_1": "Abstract text...",
-            "paper_2": "Another abstract..."
-        },
-        "coverage_target": 0.35,
-        "redundancy_threshold": 0.75
-    }
-    ```
-    """
-    # Input validation
-    if not request.documents:
-        raise HTTPException(status_code=400, detail="documents dict cannot be empty")
-    
-    if len(request.documents) < 1:
-        raise HTTPException(status_code=400, detail="At least 1 document required")
-    
-    # Validate coverage target
-    if not (0.1 <= request.coverage_target <= 0.9):
-        raise HTTPException(status_code=400, detail="coverage_target must be between 0.1 and 0.9")
-    
-    # Validate redundancy threshold
-    if not (0.0 <= request.redundancy_threshold <= 1.0):
-        raise HTTPException(status_code=400, detail="redundancy_threshold must be between 0.0 and 1.0")
-    
-    try:
-        logger.info(
-            f"Multi-document extraction: {len(request.documents)} documents, "
-            f"coverage_target={request.coverage_target}"
-        )
-        
-        result = text_rank.extract_key_sentences_from_collection(
-            documents=request.documents,
-            coverage_target=request.coverage_target,
-            redundancy_threshold=request.redundancy_threshold,
-            use_diversity_bonus=request.use_diversity_bonus,
-            use_position_bonus=request.use_position_bonus
-        )
-        
-        logger.info(
-            f"Multi-document extraction complete: "
-            f"{result['total_sentences_selected']} sentences selected, "
-            f"{result['coverage_statistics']['coverage_percent']:.1f}% coverage"
-        )
-        
-        return result
-        
-    except ValueError as e:
-        logger.error(f"Collection extraction validation error: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"Validation error: {str(e)}")
-    except Exception as e:
-        logger.error(f"Collection extraction failed: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Collection extraction failed: {str(e)}")
 
 
 @router.post("/synthesize/multi-document", response_model=SynthesizeResponse)

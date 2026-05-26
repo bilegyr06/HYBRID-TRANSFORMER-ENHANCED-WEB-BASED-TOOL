@@ -6,7 +6,6 @@ import type {
   ProcessRequest,   // now it will be used
   AnalysisRequest,
   AnalysisResponse,
-  ExtractThemesResponse,
   Metrics,
   SynthesisApiResponse,
   SynthesisResult
@@ -107,11 +106,6 @@ export const processFiles = async (filenames: string[] = []): Promise<ProcessRes
 export const analyzeResults = async (payload: AnalysisRequest): Promise<AnalysisResponse> => {
   const res = await api.post<AnalysisResponse>('/analysis/results', payload);
   return res.data;
-};
-
-export const extractThemes = async (text: string): Promise<string[]> => {
-  const res = await api.post<ExtractThemesResponse>('/extract-themes', { text });
-  return res.data.themes;
 };
 
 const reviewsApi = axios.create({

@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from datetime import datetime
 from src.core.database import get_db
+from src.core.error_handler import handle_error, handle_database_error
 from src.models.user import User
 from src.models.review import SavedReview
 from src.schemas.reviews import (
@@ -34,9 +35,17 @@ def save_review_to_db(db: Session, current_user: User, request: SaveReviewReques
         updated_at=datetime.utcnow()
     )
 
-    db.add(new_review)
-    db.commit()
-    db.refresh(new_review)
+    try:
+        db.add(new_review)
+        db.commit()
+        db.refresh(new_review)
+    except Exception as e:
+        db.rollback()
+        raise handle_database_error(
+            e,
+            "save review to database",
+            client_message="Failed to save review. Please try again."
+        )
     return new_review
 
 
@@ -150,14 +159,14 @@ async def get_review(
     if not review:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Review with ID {review_id} not found."
+            detail="Review not found."
         )
     
     # Verify ownership
     if review.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to access this review."
+            detail="You do not have permission to access this resource."
         )
     
     return SavedReviewResponse.model_validate(review)
@@ -187,18 +196,26 @@ async def delete_review(
     if not review:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Review with ID {review_id} not found."
+            detail="Review not found."
         )
     
     # Verify ownership
     if review.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to delete this review."
+            detail="You do not have permission to delete this resource."
         )
     
     # Delete the review
-    db.delete(review)
-    db.commit()
+    try:
+        db.delete(review)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise handle_database_error(
+            e,
+            "delete review",
+            client_message="Failed to delete review. Please try again."
+        )
     
     return None  # 204 No Content

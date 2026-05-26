@@ -7,12 +7,15 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from src.core.config import settings
 from src.core.database import get_db
+from src.core.error_handler import handle_error, handle_database_error
+from src.core.rate_limiting import limiter, LOGIN_RATE_LIMIT, REGISTER_RATE_LIMIT
 from src.models.user import User
 from src.services.auth_service import (
     hash_password,
     verify_password,
     create_access_token
 )
+from src.services.email_validation_service import EmailValidator
 from src.schemas.auth import RegisterRequest, LoginRequest, AuthResponse, UserResponse
 from src.api.dependencies import get_current_user
 
@@ -32,23 +35,33 @@ def set_access_token_cookie(response: Response, access_token: str) -> None:
 
 
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit(REGISTER_RATE_LIMIT)
 async def register(request: RegisterRequest, response: Response, db: Session = Depends(get_db)):
     """
     Register a new user account.
     
-    - **email**: Unique email address for login
+    - **email**: Unique email address for login (must not be disposable)
     - **password**: Password (minimum 8 characters) — hashed with Argon2
     - **full_name**: User's display name
     
     Returns JWT token in secure httpOnly cookie on success.
     Raises 409 Conflict if email already registered.
+    Raises 400 Bad Request if email is invalid or disposable.
     """
+    # Phase 3.2: Validate email with enhanced checks
+    is_valid, validation_error = EmailValidator.validate_for_registration(request.email, strict=True)
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=validation_error
+        )
+    
     # Check if email already exists
     existing_user = db.query(User).filter(User.email == request.email).first()
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Email '{request.email}' is already registered. Please login or use a different email.",
+            detail="Email is already registered. Please login or use a different email.",
         )
     
     # Create new user with hashed password
@@ -60,9 +73,17 @@ async def register(request: RegisterRequest, response: Response, db: Session = D
         created_at=datetime.utcnow()
     )
     
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    try:
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+    except Exception as e:
+        db.rollback()
+        raise handle_database_error(
+            e,
+            "register new user",
+            client_message="Failed to create account. Please try again."
+        )
     
     # Generate JWT token
     access_token = create_access_token(data={"sub": str(new_user.id)})
@@ -76,6 +97,7 @@ async def register(request: RegisterRequest, response: Response, db: Session = D
 
 
 @router.post("/login", response_model=AuthResponse)
+@limiter.limit(LOGIN_RATE_LIMIT)
 async def login(request: LoginRequest, response: Response, db: Session = Depends(get_db)):
     """
     Authenticate user and return JWT token.
@@ -102,9 +124,17 @@ async def login(request: LoginRequest, response: Response, db: Session = Depends
         )
     
     # Update last_login timestamp
-    user.last_login = datetime.utcnow()
-    db.commit()
-    db.refresh(user)
+    try:
+        user.last_login = datetime.utcnow()
+        db.commit()
+        db.refresh(user)
+    except Exception as e:
+        db.rollback()
+        raise handle_database_error(
+            e,
+            "update user last_login",
+            client_message="Login successful but failed to update session. Please try again."
+        )
     
     # Generate JWT token
     access_token = create_access_token(data={"sub": str(user.id)})

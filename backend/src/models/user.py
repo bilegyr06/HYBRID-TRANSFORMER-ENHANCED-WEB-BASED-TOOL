@@ -2,7 +2,7 @@
 User model for authentication.
 Supporting feature: Authentication & persistence layer.
 """
-from sqlalchemy import Column, Integer, String, DateTime, Index
+from sqlalchemy import Column, Integer, String, DateTime, Index, Boolean, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from src.core.database import Base
@@ -11,7 +11,7 @@ from src.core.database import Base
 class User(Base):
     """
     User account model for literature review application.
-    Stores user credentials and metadata for single-user review persistence.
+    Stores user credentials and profile metadata for single-user review persistence.
     """
     __tablename__ = "users"
     
@@ -27,9 +27,17 @@ class User(Base):
     # Optional user display name
     full_name = Column(String(255), nullable=True)
     
+    # Profile fields (Phase 3.1 enhancement)
+    bio = Column(String(500), nullable=True)
+    avatar_url = Column(String(255), nullable=True)
+    organization = Column(String(255), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    preferences = Column(Text, nullable=True)  # JSON string for user preferences
+    
     # Timestamps
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     last_login = Column(DateTime, nullable=True)
+    profile_updated_at = Column(DateTime, nullable=True)
     
     # Relationship to saved reviews (cascade delete when user deleted)
     saved_reviews = relationship(
