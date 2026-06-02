@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     # File paths
     DATA_DIR: Path = Path("data/raw")
     UPLOAD_DIR: Path = Path("data/uploads")
+    HF_CACHE_DIR: Path = Path(os.getenv("HF_HOME", "data/models"))
     
     # File upload limits (Security: DoS prevention)
     MAX_FILE_SIZE_BYTES: int = 100 * 1024 * 1024  # 100MB max per file
@@ -46,6 +47,11 @@ class Settings(BaseSettings):
     
     # Environment detection (for conditional security rules)
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")  # production | development | testing
+    
+    # HuggingFace Hub configuration (for model caching and downloads)
+    HF_TOKEN: str = os.getenv("HF_TOKEN", "")
+    HF_HUB_DISABLE_SYMLINKS: str = os.getenv("HF_HUB_DISABLE_SYMLINKS", "0")
+    HF_HOME: str = os.getenv("HF_HOME", str(Path("data/models")))
 
     @field_validator("JWT_SECRET_KEY")
     @classmethod

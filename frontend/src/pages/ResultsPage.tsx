@@ -74,7 +74,7 @@ export default function ResultsPage({
           mode: 'overall',
           documents,
           compute_rouge: true,
-          top_k: 5,
+          top_k: 10,
           coverage_target: 0.35,
         });
 

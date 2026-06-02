@@ -21,13 +21,13 @@ class PerformanceMetrics:
     def __init__(self):
         """Initialize metrics container."""
         self._lock = threading.RLock()
-        # metrics[endpoint][method] = {timings: [], errors: int, total_requests: int}
-        self._metrics: Dict = defaultdict(lambda: defaultdict(lambda: {
+        # metrics["{method} {endpoint}"] = {timings: [], errors: int, total_requests: int}
+        self._metrics: Dict = defaultdict(lambda: {
             "timings": [],
             "errors": 0,
             "total_requests": 0,
             "last_error": None
-        }))
+        })
     
     def record_request(self, endpoint: str, method: str, execution_time_ms: float, error: bool = False):
         """

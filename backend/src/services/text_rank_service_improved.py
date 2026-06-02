@@ -42,7 +42,7 @@ class TextRankService:
 
     def __init__(
         self,
-        top_k: int = 5,
+        top_k: int = 10,
         sim_threshold: float = 0.08,
         # Bias control parameters
         bias_weight: float = 0.15,  # Weight of priors vs. PageRank (0 = pure TextRank, 1 = full bias)

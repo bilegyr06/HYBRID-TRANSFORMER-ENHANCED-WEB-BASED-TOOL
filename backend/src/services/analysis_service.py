@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Dict, List
 
 from src.core.config import settings
@@ -195,7 +196,7 @@ def generate_analysis_results(request: AnalysisRequest) -> AnalysisResponse:
         )
         
         # QUALITY DEGRADATION: If synthesis quality is too low or hallucination detected, fallback to extractive
-        synthesis_degraded = False
+        synthesis_degraded = bool(synthesis_result.get("synthesis_degraded", False))
         if quality_score < 0.6 or has_hallucination:
             logger.warning(
                 f"Synthesis quality below threshold (score={quality_score:.2f}, hallucination={has_hallucination}). "
@@ -206,6 +207,15 @@ def generate_analysis_results(request: AnalysisRequest) -> AnalysisResponse:
             synthesis_result["abstractive_summary"] = synthesis_summary
             synthesis_result["synthesis_degraded"] = True
             synthesis_degraded = True
+            summary_tokens = set(re.findall(r"\w+", synthesis_summary.lower()))
+            input_tokens = set(re.findall(r"\w+", " ".join(sentence_strings).lower()))
+            metadata = synthesis_result.setdefault("metadata", {})
+            metadata["word_count"] = len(synthesis_summary.split())
+            metadata["char_count"] = len(synthesis_summary)
+            metadata["faithfulness_score"] = round(
+                len(summary_tokens.intersection(input_tokens)) / max(1, len(summary_tokens)),
+                3,
+            )
         
         # Semantic theme clustering (max 3 clusters)
         raw_themes = synthesis_result.get("key_themes", [])

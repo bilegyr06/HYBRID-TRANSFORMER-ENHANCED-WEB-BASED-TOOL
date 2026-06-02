@@ -2,12 +2,12 @@
 Authentication API endpoints for user registration, login, and session management.
 Supporting feature: Authentication & persistence layer for user account management.
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Response
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from sqlalchemy.orm import Session
 from datetime import datetime
 from src.core.config import settings
 from src.core.database import get_db
-from src.core.error_handler import handle_error, handle_database_error
+from src.core.error_handler import handle_database_error #, handle_error
 from src.core.rate_limiting import limiter, LOGIN_RATE_LIMIT, REGISTER_RATE_LIMIT
 from src.models.user import User
 from src.services.auth_service import (
@@ -36,7 +36,7 @@ def set_access_token_cookie(response: Response, access_token: str) -> None:
 
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit(REGISTER_RATE_LIMIT)
-async def register(request: RegisterRequest, response: Response, db: Session = Depends(get_db)):
+async def register(http_request: Request, request: RegisterRequest, response: Response, db: Session = Depends(get_db)):
     """
     Register a new user account.
     
@@ -98,7 +98,7 @@ async def register(request: RegisterRequest, response: Response, db: Session = D
 
 @router.post("/login", response_model=AuthResponse)
 @limiter.limit(LOGIN_RATE_LIMIT)
-async def login(request: LoginRequest, response: Response, db: Session = Depends(get_db)):
+async def login(http_request: Request, request: LoginRequest, response: Response, db: Session = Depends(get_db)):
     """
     Authenticate user and return JWT token.
     

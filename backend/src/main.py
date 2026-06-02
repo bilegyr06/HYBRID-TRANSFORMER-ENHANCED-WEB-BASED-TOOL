@@ -13,6 +13,8 @@ from src.api.analysis_routes import router as analysis_router
 from src.api.review_routes import router as review_router
 from src.api.profile_routes import router as profile_router
 import logging
+import os
+from pathlib import Path
 
 # Setup centralized logging (Phase 2.7)
 setup_logging()
@@ -50,16 +52,23 @@ async def preload_ml_models():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Create required directories, pre-load NLP models, and initialize database on startup.
+    Setup HuggingFace cache, create required directories, pre-load NLP models, and initialize database on startup.
     Supporting feature: Authentication & persistence layer for user account and review storage.
     """
-    # Create required directories
+    # Setup HuggingFace Hub cache directory (persists model downloads across restarts)
+    hf_cache_dir = Path(settings.HF_HOME)
+    hf_cache_dir.mkdir(parents=True, exist_ok=True)
+    os.environ["HF_HOME"] = str(hf_cache_dir.absolute())
+    logger.info(f"HuggingFace cache directory: {hf_cache_dir.absolute()}")
+    
+    # Create required application directories
     settings.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    settings.DATA_DIR.mkdir(parents=True, exist_ok=True)
     
     # Setup performance metrics (Phase 3.5)
     setup_performance_metrics()
     
-    # Pre-load NLP models (CRITICAL for performance)
+    # Pre-load NLP models (CRITICAL for performance - downloads cached on first load)
     await preload_ml_models()
     
     # Initialize database tables (supporting feature: user authentication & review persistence)

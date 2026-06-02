@@ -53,6 +53,9 @@ spacy_models/
 # Upload directories (generated at runtime)
 data/uploads/
 data/raw/syntheses/
+scripts
+tests
+.json
 
 # macOS
 .AppleDouble
