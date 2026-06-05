@@ -14,6 +14,7 @@ from src.api.review_routes import router as review_router
 from src.api.profile_routes import router as profile_router
 import logging
 import os
+import shutil
 from pathlib import Path
 
 # Setup centralized logging (Phase 2.7)
@@ -23,11 +24,25 @@ logger = logging.getLogger(__name__)
 # Global model instances (initialized on startup)
 _models_initialized = False
 
+
+def _clear_hf_cache(cache_dir: Path) -> None:
+    """Clear Hugging Face cache directory when explicitly requested via env flag."""
+    if not cache_dir.exists():
+        return
+
+    # Guardrail: never remove drive root or an empty path.
+    if str(cache_dir.resolve()) in {str(cache_dir.anchor), ""}:
+        raise RuntimeError(f"Refusing to clear unsafe cache path: {cache_dir}")
+
+    logger.warning("HF_CACHE_CLEAR_ON_STARTUP enabled; removing cache directory: %s", cache_dir)
+    shutil.rmtree(cache_dir, ignore_errors=True)
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
 async def preload_ml_models():
     """Pre-load NLP models on application startup to prevent first-request latency.
     
     This solves the issue where the first request would block for 5-10 seconds
-    while loading the BART and TextRank models. By pre-loading during startup,
+    while loading the summarization and TextRank models. By pre-loading during startup,
     all subsequent requests are fast.
     """
     global _models_initialized
@@ -35,12 +50,16 @@ async def preload_ml_models():
         return
     
     try:
-        logger.info("Pre-loading NLP models (BART, TextRank)...")
+        logger.info(
+            "Pre-loading NLP models (Pegasus + TextRank) [force_download=%s, local_files_only=%s]...",
+            settings.HF_MODEL_FORCE_DOWNLOAD,
+            settings.HF_MODEL_LOCAL_FILES_ONLY,
+        )
         from src.services.summarizer_service import SummarizerService
         from src.services.text_rank_service_improved import TextRankService
         
         # Initialize services (this loads the models into memory)
-        _ = SummarizerService()
+        _ = SummarizerService(force_download=settings.HF_MODEL_FORCE_DOWNLOAD)
         _ = TextRankService()
         
         _models_initialized = True
@@ -57,7 +76,10 @@ async def lifespan(app: FastAPI):
     """
     # Setup HuggingFace Hub cache directory (persists model downloads across restarts)
     hf_cache_dir = Path(settings.HF_HOME)
-    hf_cache_dir.mkdir(parents=True, exist_ok=True)
+    if settings.HF_CACHE_CLEAR_ON_STARTUP:
+        _clear_hf_cache(hf_cache_dir)
+    else:
+        hf_cache_dir.mkdir(parents=True, exist_ok=True)
     os.environ["HF_HOME"] = str(hf_cache_dir.absolute())
     logger.info(f"HuggingFace cache directory: {hf_cache_dir.absolute()}")
     
@@ -107,7 +129,7 @@ tags_metadata = [
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
-    description="Hybrid TextRank + BART Literature Review Assistant with advanced document analysis",
+    description="Hybrid TextRank + Pegasus Literature Review Assistant with advanced document analysis",
     openapi_tags=tags_metadata,
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",

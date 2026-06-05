@@ -1,50 +1,32 @@
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer  # type: ignore
-from typing import List, Dict, Any
+from transformers import AutoTokenizer, PegasusConfig, PegasusForConditionalGeneration  # type: ignore
+from typing import List, Dict, Any, Optional
 import logging
 import torch  # type: ignore
 import json
 import re
+from pathlib import Path
+
+from src.core.config import settings
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 # Configuration constants
-# FIXED: Switched from distilbart-cnn-12-6 (news domain) to pegasus-arxiv (academic domain)
-# Reason: Eliminates hallucinations, removes prompt leakage, better for scientific/legal text
-MODEL_NAME = "google/pegasus-xsum"
 MAX_PROMPT_LENGTH = 3000
-MIN_SUMMARY_LENGTH = 50
-DEFAULT_MAX_LENGTH = 200
+MIN_SUMMARY_LENGTH = 20
+DEFAULT_MAX_LENGTH = 150
 NUM_BEAMS = 4
-
-# FIXED: Simplified prompts to eliminate instruction leakage
-# PEGASUS is seq2seq model - doesn't need meta-instruction text
-PROMPT_TEMPLATE = (
-    """Synthesize the following key sentences from multiple academic papers into one coherent abstractive summary:
-
-{}
-
-Keep it to 200-300 words. Use academic language. Only include information present in the input."""
-)
-
-PROMPT_TEMPLATE_SINGLE = (
-    """Summarize the following key sentences from a research paper:
-
-{}
-
-Keep it to 150-250 words. Use academic language."""
-)
 
 _summarizer_instance = None
 
 class SummarizerService:
-    """Abstractive text summarization service using PEGASUS-ArXiv model.
+    """Abstractive text summarization service.
     
     Uses a singleton pattern to load the model once and reuse across requests.
     Implements device detection for GPU/CPU optimization.
     """
     
-    def __init__(self) -> None:
+    def __init__(self, force_download: Optional[bool] = None) -> None:
         """Initialize the summarizer with model loading and device detection.
         
         Uses a global singleton pattern to ensure the model is loaded only once
@@ -57,20 +39,59 @@ class SummarizerService:
                 device = 0 if torch.cuda.is_available() else -1  # type: ignore
                 device_name = "GPU (CUDA)" if device == 0 else "CPU"
                 logger.info(f"Initializing summarizer on {device_name}...")
-                
-                # Load model and tokenizer directly (pipeline API removed this task in v5.3+)
-                tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-                model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME)
+
+                cache_dir = Path(settings.HF_HOME)
+                cache_dir.mkdir(parents=True, exist_ok=True)
+                use_force_download = settings.HF_MODEL_FORCE_DOWNLOAD if force_download is None else force_download
+                hub_token = settings.HF_TOKEN or None
+
+                # Explicit Pegasus config wiring to control embedding tie behavior.
+                pegasus_config = PegasusConfig.from_pretrained(
+                    settings.MODEL_NAME,
+                    cache_dir=str(cache_dir),
+                    force_download=use_force_download,
+                    local_files_only=settings.HF_MODEL_LOCAL_FILES_ONLY,
+                    token=hub_token,
+                    tie_word_embeddings=settings.PEGASUS_TIE_WORD_EMBEDDINGS,
+                )
+
+                tokenizer = AutoTokenizer.from_pretrained(
+                    settings.MODEL_NAME,
+                    cache_dir=str(cache_dir),
+                    force_download=use_force_download,
+                    local_files_only=settings.HF_MODEL_LOCAL_FILES_ONLY,
+                    token=hub_token,
+                )
+                model = PegasusForConditionalGeneration.from_pretrained(
+                    settings.MODEL_NAME,
+                    config=pegasus_config,
+                    cache_dir=str(cache_dir),
+                    force_download=use_force_download,
+                    local_files_only=settings.HF_MODEL_LOCAL_FILES_ONLY,
+                    token=hub_token,
+                )
                 
                 # Move to GPU if available
                 if device == 0:
                     model = model.to('cuda')
                     if torch.cuda.is_available():
                         model = model.half()  # Use float16 for memory efficiency
+
+                model.eval()
                 
                 _summarizer_instance = {"model": model, "tokenizer": tokenizer}
                 logger.info(f"Summarizer loaded successfully on {device_name}")
             except Exception as e:
+                # Retry once with forced download to recover from partial/corrupt cache.
+                if settings.HF_MODEL_RETRY_FORCE_DOWNLOAD and force_download is not True:
+                    logger.warning(
+                        "Initial summarizer load failed. Retrying with force_download=True. Error: %s",
+                        str(e),
+                    )
+                    _summarizer_instance = None
+                    self.__init__(force_download=True)
+                    return
+
                 logger.error(f"Failed to initialize summarizer: {str(e)}")
                 raise
         self.summarizer = _summarizer_instance
@@ -117,9 +138,8 @@ class SummarizerService:
     ) -> str:
         """Generate abstractive summary from ranked sentences.
         
-        Combines ranked key sentences into a coherent abstractive summary using
-        the BART-CNN model. Implements intelligent truncation and validation to
-        ensure robust summarization across varying input sizes.
+        Combines ranked key sentences into a coherent abstractive summary.
+        Implements truncation and validation to keep input stable.
         
         Args:
             key_sentences: List of dictionaries with "sentence" key containing
@@ -162,12 +182,10 @@ class SummarizerService:
             logger.error(f"Invalid key_sentences format: {str(e)}")
             return f"Invalid input format: {str(e)}"
         
-        # PEGASUS-ArXiv is a summarization model, not an instruction-following
-        # chat model. Passing prompt instructions as part of the input makes the
-        # per-document summaries unstable, so summarize only the source text.
+        # Summarize only the source text for the per-document path.
         prompt = re.sub(r"\s+", " ", combined_text).strip()
         
-        # Truncate if too long (BART max ~1024 tokens, add buffer)
+        # Truncate if too long; keep a buffer under the model's input limit.
         if len(prompt) > MAX_PROMPT_LENGTH:
             logger.debug(
                 f"Prompt truncated from {len(prompt)} to {MAX_PROMPT_LENGTH} characters"
@@ -202,8 +220,7 @@ class SummarizerService:
         """Generate cross-document synthesis from multiple processed results.
         
         Combines key insights from multiple papers into one coherent synthesis
-        using the BART-CNN model. Designed for literature synthesis: aggregates
-        abstractive summaries and key sentences to create unified output.
+        by aggregating abstractive summaries and key sentences.
         
         Args:
             results: List of ProcessResult dictionaries, each containing:
@@ -584,12 +601,7 @@ class SummarizerService:
         return merged_theme_support, merged_representative_quotes, merged_theme_counts, merged_labels
 
     def _build_synthesis_prompt(self, sentence_texts: List[str], target_length: int) -> str:
-        """Build clean source text for PEGASUS synthesis.
-
-        PEGASUS-ArXiv is a seq2seq summarization model, so instruction prompts
-        are treated as source text. Keep the input clean and let quality checks
-        enforce grounding after generation.
-        """
+        """Build clean source text for synthesis."""
         return re.sub(r"\s+", " ", " ".join(sentence_texts)).strip()
 
     def _build_extractive_fallback_summary(self, sentences: List[str], max_words: int = 180) -> str:

@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     MAX_TOTAL_UPLOAD_SIZE_BYTES: int = 500 * 1024 * 1024  # 500MB per request
     
     # NLP models
-    MODEL_NAME: str = "facebook/bart-base"   # we can change to distilbart later
+    MODEL_NAME: str = "google/pegasus-arxiv"
     
     # Database configuration
     # Supporting feature: Authentication & persistence layer
@@ -52,6 +52,12 @@ class Settings(BaseSettings):
     HF_TOKEN: str = os.getenv("HF_TOKEN", "")
     HF_HUB_DISABLE_SYMLINKS: str = os.getenv("HF_HUB_DISABLE_SYMLINKS", "0")
     HF_HOME: str = os.getenv("HF_HOME", str(Path("data/models")))
+    HF_MODEL_FORCE_DOWNLOAD: bool = os.getenv("HF_MODEL_FORCE_DOWNLOAD", "false").lower() == "true"
+    HF_MODEL_RETRY_FORCE_DOWNLOAD: bool = os.getenv("HF_MODEL_RETRY_FORCE_DOWNLOAD", "true").lower() == "true"
+    HF_MODEL_LOCAL_FILES_ONLY: bool = os.getenv("HF_MODEL_LOCAL_FILES_ONLY", "false").lower() == "true"
+    HF_CACHE_CLEAR_ON_STARTUP: bool = os.getenv("HF_CACHE_CLEAR_ON_STARTUP", "false").lower() == "true"
+    PEGASUS_TIE_WORD_EMBEDDINGS: bool = os.getenv("PEGASUS_TIE_WORD_EMBEDDINGS", "false").lower() == "true"
+
 
     @field_validator("JWT_SECRET_KEY")
     @classmethod
