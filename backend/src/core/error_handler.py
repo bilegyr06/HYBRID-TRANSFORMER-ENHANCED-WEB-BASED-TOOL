@@ -10,6 +10,7 @@ Usage:
         # operation
     except SpecificError as e:
         handle_error(e, "Failed to do thing")  # Returns generic HTTPException
+Simplified error handling for the Literature Review Assistant.
 """
 
 import logging
@@ -60,6 +61,7 @@ def handle_error(
     log_func = getattr(logger, log_level, logger.error)
     log_func(
         f"Error during {operation}: {type(exception).__name__}: {str(exception)}",
+        f"Operation '{operation}' failed: {type(exception).__name__}",
         exc_info=True,
         extra={
             "operation": operation,
@@ -71,6 +73,10 @@ def handle_error(
     # Generate client message if not provided
     if client_message is None:
         client_message = _get_safe_client_message(exception, status_code)
+        if isinstance(exception, (SQLAlchemyError, ValidationError)):
+            client_message = "A data validation or database error occurred."
+        else:
+            client_message = "An internal error occurred. Please try again."
     
     return HTTPException(status_code=status_code, detail=client_message)
 

@@ -49,6 +49,7 @@ torch_models/
 transformers_cache/
 spacy_models/
 .cache/
+data/models/
 
 # Upload directories (generated at runtime)
 data/uploads/

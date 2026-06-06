@@ -30,7 +30,8 @@ def save_review_to_db(db: Session, current_user: User, request: SaveReviewReques
         abstractive_summary=request.abstractive_summary,
         key_themes=request.key_themes,
         visualizations_metadata=request.visualizations_metadata,
-        rouge_scores=request.rouge_scores,
+        rouge_scores=request.rouge_scores or request.quality_metrics,
+        quality_metrics=request.quality_metrics,
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )

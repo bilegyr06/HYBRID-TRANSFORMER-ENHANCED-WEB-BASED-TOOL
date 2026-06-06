@@ -45,7 +45,11 @@ class SavedReview(Base):
     # Example: {"network_graph": "...", "theme_distribution": "..."}
     visualizations_metadata = Column(JSON, nullable=True)
     
-    # ROUGE evaluation metrics as JSON dict
+    # Summary quality metrics as JSON dict
+    # Example: {"faithfulness_score": 0.78, "avg_input_score": 0.52}
+    quality_metrics = Column(JSON, nullable=True)
+
+    # ROUGE evaluation metrics as JSON dict (legacy/backward compatibility)
     # Example: {"rouge1": 0.45, "rouge2": 0.32, "rougeL": 0.42}
     rouge_scores = Column(JSON, nullable=True)
     

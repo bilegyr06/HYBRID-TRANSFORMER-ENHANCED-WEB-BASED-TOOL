@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 # Add src to path
-sys.path.insert(0, str(Path(__file__).parent / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from services.summarizer_service import SummarizerService
 
@@ -78,9 +78,9 @@ def test_synthesis_feature():
     print("\n[*] Initializing SummarizerService...")
     try:
         service = SummarizerService()
-        print("    ✓ Summarizer initialized successfully")
+        print("    [OK] Summarizer initialized successfully")
     except Exception as e:
-        print(f"    ✗ Failed to initialize: {e}")
+        print(f"    [FAIL] Failed to initialize: {e}")
         return False
     
     # Call the new synthesis method
@@ -92,9 +92,9 @@ def test_synthesis_feature():
             min_length=150,
             max_length=300
         )
-        print("    ✓ Synthesis completed successfully")
+        print("    [OK] Synthesis completed successfully")
     except Exception as e:
-        print(f"    ✗ Synthesis failed: {e}")
+        print(f"    [FAIL] Synthesis failed: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -104,27 +104,27 @@ def test_synthesis_feature():
     print("SYNTHESIS RESULTS")
     print("=" * 80)
     
-    print("\n📝 ABSTRACTIVE SUMMARY:")
+    print("\n[SUMMARY] ABSTRACTIVE SUMMARY:")
     print("-" * 80)
     print(result["abstractive_summary"])
     print("-" * 80)
     
-    print(f"\n📊 METADATA:")
+    print(f"\n[METADATA]:")
     metadata = result.get("metadata", {})
-    print(f"  • Word count: {metadata.get('word_count', 'N/A')} words")
-    print(f"  • Character count: {metadata.get('char_count', 'N/A')} chars")
-    print(f"  • Documents represented: {metadata.get('num_documents', 'N/A')} ({', '.join(metadata.get('documents_represented', []))})")
-    print(f"  • Input sentences processed: {metadata.get('total_input_sentences', 'N/A')}")
-    print(f"  • Target range: {metadata.get('target_length_range', 'N/A')}")
+    print(f"  - Word count: {metadata.get('word_count', 'N/A')} words")
+    print(f"  - Character count: {metadata.get('char_count', 'N/A')} chars")
+    print(f"  - Documents represented: {metadata.get('num_documents', 'N/A')} ({', '.join(metadata.get('documents_represented', []))})")
+    print(f"  - Input sentences processed: {metadata.get('total_input_sentences', 'N/A')}")
+    print(f"  - Target range: {metadata.get('target_length_range', 'N/A')}")
     
-    print(f"\n🎯 KEY THEMES ({len(result['key_themes'])} identified):")
+    print(f"\n[THEMES] KEY THEMES ({len(result['key_themes'])} identified):")
     for i, theme in enumerate(result["key_themes"], 1):
         print(f"  {i}. {theme}")
     
-    print(f"\n🔗 SOURCE MAPPING:")
+    print(f"\n[MAPPING] SOURCE MAPPING:")
     if result["source_mapping"]:
         for theme_key, sources in result["source_mapping"].items():
-            print(f"  • {theme_key}: {sources}")
+            print(f"  - {theme_key}: {sources}")
     else:
         print("  (No explicit source mapping in model output)")
     
@@ -138,27 +138,27 @@ def test_synthesis_feature():
     # Check 1: Word count in range
     word_count = metadata.get('word_count', 0)
     if 150 <= word_count <= 300:
-        checks.append(("✓", f"Word count in range: {word_count} words (150-300)"))
+        checks.append(("[OK]", f"Word count in range: {word_count} words (150-300)"))
     else:
-        checks.append(("⚠", f"Word count out of range: {word_count} words (expected 150-300)"))
+        checks.append(("[WARN]", f"Word count out of range: {word_count} words (expected 150-300)"))
     
     # Check 2: Key themes present
     if len(result["key_themes"]) >= 4:
-        checks.append(("✓", f"Adequate themes: {len(result['key_themes'])} themes (target 4-7)"))
+        checks.append(("[OK]", f"Adequate themes: {len(result['key_themes'])} themes (target 4-7)"))
     else:
-        checks.append(("⚠", f"Few themes: {len(result['key_themes'])} themes (expected 4-7)"))
+        checks.append(("[WARN]", f"Few themes: {len(result['key_themes'])} themes (expected 4-7)"))
     
     # Check 3: Source mapping present
     if result["source_mapping"]:
-        checks.append(("✓", f"Source mapping present: {len(result['source_mapping'])} mappings"))
+        checks.append(("[OK]", f"Source mapping present: {len(result['source_mapping'])} mappings"))
     else:
-        checks.append(("ℹ", "Source mapping empty (depends on model output)"))
+        checks.append(("[INFO]", "Source mapping empty (depends on model output)"))
     
     # Check 4: Summary is non-empty
     if result["abstractive_summary"].strip():
-        checks.append(("✓", "Abstractive summary generated"))
+        checks.append(("[OK]", "Abstractive summary generated"))
     else:
-        checks.append(("✗", "Abstractive summary is empty"))
+        checks.append(("[FAIL]", "Abstractive summary is empty"))
     
     for status, msg in checks:
         print(f"  {status} {msg}")

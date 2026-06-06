@@ -35,9 +35,13 @@ class SaveReviewRequest(BaseModel):
         default=None,
         description="Metadata about visualizations (chart IDs, URLs, etc.)"
     )
+    quality_metrics: Optional[dict[str, float]] = Field(
+        default=None,
+        description="Summary quality metrics such as faithfulness and input overlap.",
+    )
     rouge_scores: Optional[dict[str, float]] = Field(
         default=None,
-        description="ROUGE evaluation metrics (rouge1, rouge2, rougeL)"
+        description="Legacy ROUGE field retained for backward compatibility.",
     )
 
 
@@ -51,6 +55,7 @@ class SavedReviewResponse(BaseModel):
     abstractive_summary: str
     key_themes: Optional[list[str]]
     visualizations_metadata: Optional[dict[str, Any]]
+    quality_metrics: Optional[dict[str, Any]]
     rouge_scores: Optional[dict[str, float]]
     created_at: datetime
     updated_at: datetime

@@ -1,28 +1,45 @@
-alembic == 1.15.0
-arxiv == 2.4.1
-fastapi == 0.135.1
-networkx == 3.6.1
-nltk == 3.9.3
-numpy == 2.4.3
-pandas == 3.0.1
-passlib[argon2] == 1.7.4
-argon2-cffi == 23.1.0
-pdfplumber == 0.11.4
-pip == 25.0.1
-pydantic == 2.12.5
-pydantic-settings == 2.13.1
-email-validator == 2.1.0
-python-dotenv == 1.0.0
-python-jose[cryptography] == 3.4.0
-python-multipart == 0.0.22
-rouge-score == 0.1.2
-scikit-learn == 1.5.2
-slowapi == 0.1.9  # Rate limiting for login attempts (Phase 2.6)
-spacy == 3.8.11
-sqlalchemy == 2.0.49
-torch == 2.10.0
-torchaudio == 2.10.0
-torchvision == 0.25.0
-tqdm == 4.67.3
-transformers == 5.3.0
-uvicorn == 0.41.0
+bert-score == 0.3.13
+# Core Web Framework
+fastapi==0.135.1
+uvicorn==0.41.0
+starlette==0.52.1
+python-multipart == 0.0.32
+
+# Database & Migrations
+sqlalchemy==2.0.49
+alembic==1.15.0
+
+# Data Validation & Configuration
+pydantic==2.12.5
+pydantic-settings==2.13.1
+python-dotenv==1.0.0
+
+# Authentication & Security
+python-jose[cryptography]==3.4.0
+passlib[argon2]==1.7.4
+email-validator==2.1.0
+
+# Deep Learning & NLP Models
+torch==2.10.0
+transformers==5.3.0
+numpy==2.4.3
+
+# NLP Processing
+nltk==3.9.3
+networkx==3.6.1
+scikit-learn==1.5.2
+scipy==1.17.1
+
+# Evaluation Metrics
+rouge-score==0.1.2
+bert-score==0.3.13
+
+# Document Processing
+pdfplumber==0.11.4
+
+# Rate Limiting
+slowapi==0.1.9
+
+# Utilities
+arxiv==2.4.1
+tqdm==4.67.3

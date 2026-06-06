@@ -319,9 +319,14 @@ async def synthesize_multi_document(
                     "theme_support_counts": synthesis_result.get("theme_support_counts", {}),
                     "representative_quotes": synthesis_result.get("representative_quotes", {}),
                 },
-                rouge_scores={
+                quality_metrics={
                     "faithfulness_score": float(synthesis_result.get("metadata", {}).get("faithfulness_score", 0.0)),
                     "avg_input_score": float(synthesis_result.get("metadata", {}).get("avg_input_score", 0.0)),
+                },
+                rouge_scores={
+                    "reference_rouge1": float(synthesis_result.get("overall_rouge_scores", {}).get("reference_rouge1", 0.0)),
+                    "reference_rouge2": float(synthesis_result.get("overall_rouge_scores", {}).get("reference_rouge2", 0.0)),
+                    "reference_rougeL": float(synthesis_result.get("overall_rouge_scores", {}).get("reference_rougeL", 0.0)),
                 },
             )
             saved_review = save_review_to_db(db, current_user, save_request)

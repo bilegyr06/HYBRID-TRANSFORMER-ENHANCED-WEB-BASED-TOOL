@@ -1,4 +1,12 @@
-"""Lightweight evaluation helpers for summary quality metrics."""
+"""Lightweight evaluation helpers for summary quality metrics.
+
+The helper reports two distinct views of ROUGE:
+- self_rouge_* compares the generated summary against the extracted source sentences
+- reference_rouge_* compares the generated summary against an optional gold reference
+
+This keeps the metric semantics explicit so callers do not confuse source overlap with
+reference-based evaluation.
+"""
 
 from __future__ import annotations
 
@@ -16,7 +24,7 @@ def compute_rouge_scores(
     extractive_sentences: Iterable[str],
     reference: Optional[str] = None,
 ) -> dict[str, float]:
-    """Compute Self-ROUGE against extractive sentences and optional reference text."""
+    """Compute ROUGE against extracted source text and optional reference text."""
 
     summary_text = (abstractive_summary or "").strip()
     extractive_text = _concat_sentences(extractive_sentences)
@@ -31,6 +39,9 @@ def compute_rouge_scores(
     self_scores = scorer.score(extractive_text, summary_text)
 
     scores = {
+        "self_rouge1": round(self_scores["rouge1"].fmeasure, 4),
+        "self_rouge2": round(self_scores["rouge2"].fmeasure, 4),
+        "self_rougeL": round(self_scores["rougeL"].fmeasure, 4),
         "rouge1": round(self_scores["rouge1"].fmeasure, 4),
         "rouge2": round(self_scores["rouge2"].fmeasure, 4),
         "rougeL": round(self_scores["rougeL"].fmeasure, 4),

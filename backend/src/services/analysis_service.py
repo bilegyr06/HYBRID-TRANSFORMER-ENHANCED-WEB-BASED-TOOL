@@ -48,7 +48,7 @@ def _cluster_themes_semantic(
         return []
     
     try:
-        from sentence_transformers import SentenceTransformer
+        from sentence_transformers import SentenceTransformer  # type: ignore
         from sklearn.cluster import AgglomerativeClustering
         
         model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -179,31 +179,23 @@ def generate_analysis_results(request: AnalysisRequest) -> AnalysisResponse:
             )
         
         synthesis_result = _summarizer.synthesize_from_extractive_sentences(extractive_sentences)
-        
-        # Check synthesis quality and degrade to extractive if needed
+        sentence_strings = [s.get("sentence", "") if isinstance(s, dict) else s for s in extractive_sentences]
+        concatenated_reference = "\n".join(documents.values())
+
+        # Check synthesis quality and degrade to extractive if needed.
         quality_score = synthesis_result.get("quality_score", 0.8)
         has_hallucination = synthesis_result.get("has_hallucination", False)
-        
-        # Compute ROUGE for overall synthesis against concatenated source documents
-        concatenated_reference = "\n".join(documents.values())
+        synthesis_degraded = bool(synthesis_result.get("synthesis_degraded", False))
         synthesis_summary = synthesis_result.get("abstractive_summary", "")
-        # Extract sentence strings from dictionaries for ROUGE computation
-        sentence_strings = [s.get("sentence", "") if isinstance(s, dict) else s for s in extractive_sentences]
-        overall_rouge = compute_rouge_scores(
-            synthesis_summary,
-            sentence_strings,
-            reference=concatenated_reference
-        )
         
         # QUALITY DEGRADATION: If synthesis quality is too low or hallucination detected, fallback to extractive
-        synthesis_degraded = bool(synthesis_result.get("synthesis_degraded", False))
-        if quality_score < 0.6 or has_hallucination:
+        if quality_score < 0.5 or has_hallucination:
             logger.warning(
                 f"Synthesis quality below threshold (score={quality_score:.2f}, hallucination={has_hallucination}). "
                 f"Degrading to extractive-only summary."
             )
             # Fallback: Use concatenated extractive sentences as summary
-            synthesis_summary = " ".join(sentence_strings[:10])  # Top 10 sentences
+            synthesis_summary = _summarizer._build_extractive_fallback_summary(sentence_strings[:10], max_words=220)
             synthesis_result["abstractive_summary"] = synthesis_summary
             synthesis_result["synthesis_degraded"] = True
             synthesis_degraded = True
@@ -216,6 +208,13 @@ def generate_analysis_results(request: AnalysisRequest) -> AnalysisResponse:
                 len(summary_tokens.intersection(input_tokens)) / max(1, len(summary_tokens)),
                 3,
             )
+
+        # Recompute ROUGE against the final returned synthesis so metrics match the payload.
+        overall_rouge = compute_rouge_scores(
+            synthesis_summary,
+            sentence_strings,
+            reference=concatenated_reference,
+        )
         
         # Semantic theme clustering (max 3 clusters)
         raw_themes = synthesis_result.get("key_themes", [])
@@ -226,9 +225,11 @@ def generate_analysis_results(request: AnalysisRequest) -> AnalysisResponse:
         synthesis_result["overall_rouge_scores"] = overall_rouge
         synthesis_result["synthesis_degraded"] = synthesis_degraded
         
-        logger.info(f"Overall synthesis complete: {len(extractive_sentences)} extractive sentences, "
-                   f"{len(clustered_themes)} theme clusters, ROUGE-1={overall_rouge.get('rouge1', 0)}, "
-                   f"quality_score={quality_score:.2f}, degraded={synthesis_degraded}")
+        logger.info(
+            f"Overall synthesis complete: {len(extractive_sentences)} extractive sentences, "
+            f"{len(clustered_themes)} theme clusters, ROUGE-1={overall_rouge.get('reference_rouge1', overall_rouge.get('rouge1', 0))}, "
+            f"quality_score={quality_score:.2f}, degraded={synthesis_degraded}"
+        )
         
     except Exception as e:
         logger.error(f"Overall synthesis generation failed: {e}", exc_info=True)

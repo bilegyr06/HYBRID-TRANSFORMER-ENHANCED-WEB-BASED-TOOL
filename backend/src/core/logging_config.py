@@ -117,6 +117,12 @@ def get_logging_config() -> Dict[str, Any]:
                 "handlers": ["console", "file", "security_file"],
                 "propagate": False,
             },
+            # Summarizer service logging
+            "src.services.summarizer_service": {
+                "level": log_level,
+                "handlers": ["console", "file", "error_file"],
+                "propagate": False,
+            },
             # Database logging
             "src.core.database": {
                 "level": log_level,

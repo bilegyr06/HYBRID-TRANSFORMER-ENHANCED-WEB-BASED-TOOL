@@ -124,7 +124,10 @@ class SummarizerService:
             min_length=min_length,
             num_beams=NUM_BEAMS,
             early_stopping=True,
-            do_sample=False
+            do_sample=False,
+            no_repeat_ngram_size=3,
+            repetition_penalty=1.2,
+            length_penalty=0.8,
         )
         
         # Decode output
@@ -405,10 +408,11 @@ class SummarizerService:
         )
 
         if (
-            structured_output.get("quality_score", 0) < 0.6
+            structured_output.get("quality_score", 0) < 0.5
             or structured_output.get("has_hallucination", False)
             or self._is_low_quality_generation(structured_output.get("abstractive_summary", ""), sentence_texts)
         ):
+            logger.info(f"Original synthesis quality_score: {structured_output.get('quality_score', 0):.2f}")
             logger.warning("Generated synthesis failed quality checks; using extractive fallback before metadata")
             fallback_summary = self._build_extractive_fallback_summary(sentence_texts, max_words=max_length)
             structured_output = self._parse_synthesis_output(
@@ -605,19 +609,46 @@ class SummarizerService:
         return re.sub(r"\s+", " ", " ".join(sentence_texts)).strip()
 
     def _build_extractive_fallback_summary(self, sentences: List[str], max_words: int = 180) -> str:
-        """Return a grounded fallback summary from ranked source sentences."""
-        words: List[str] = []
+        """Return a grounded fallback summary from ranked source sentences.
+
+        Keep sentence boundaries intact so the fallback stays readable and less
+        brittle than a raw word splice.
+        """
+        fallback_sentences: List[str] = []
+        word_count = 0
+
         for sentence in sentences:
-            for word in sentence.split():
-                if len(words) >= max_words:
-                    break
-                words.append(word)
-            if len(words) >= max_words:
+            cleaned = sentence.strip()
+            if not cleaned:
+                continue
+
+            sentence_words = cleaned.split()
+            if not sentence_words:
+                continue
+
+            if word_count and word_count + len(sentence_words) > max_words:
                 break
-        return " ".join(words).strip()
+
+            fallback_sentences.append(cleaned)
+            word_count += len(sentence_words)
+
+            if word_count >= max_words:
+                break
+
+        return " ".join(fallback_sentences).strip()
 
     def _is_low_quality_generation(self, text: str, source_sentences: List[str]) -> bool:
-        """Detect repeated or off-topic generated text before it reaches the UI."""
+        """Detect repeated, degenerate, or off-topic generated text before it reaches the UI.
+
+        Checks (in order):
+        1. Vocabulary diversity — degenerate loops have very low unique/total ratio
+        2. Near-zero source token overlap — 0% overlap = total hallucination
+        3. Repeated 4-gram windows — catches phrase-level repetition
+        4. Dominant single-token repetition — catches word-level loops
+        5. Known degeneration tokens — hardcoded Pegasus failure patterns
+        """
+        from collections import Counter
+
         text = (text or "").strip()
         source_text = " ".join(source_sentences or [])
         if not text:
@@ -625,19 +656,44 @@ class SummarizerService:
 
         summary_tokens = re.findall(r"\w+", text.lower())
         source_tokens = set(re.findall(r"\w+", source_text.lower()))
-        if len(summary_tokens) >= 12:
-            overlap = len(set(summary_tokens).intersection(source_tokens)) / max(1, len(set(summary_tokens)))
-            if overlap < 0.25:
-                logger.warning(f"Generated text has low source overlap ({overlap:.2%})")
+
+        # CHECK 1: Vocabulary diversity (unique / total tokens)
+        # Degenerate outputs have very low diversity (e.g., "indigo" repeated 20x)
+        if len(summary_tokens) >= 10:
+            unique_ratio = len(set(summary_tokens)) / len(summary_tokens)
+            if unique_ratio < 0.4:
+                logger.warning(f"Generated text has very low vocabulary diversity ({unique_ratio:.2%})")
                 return True
 
+        # CHECK 2: Near-zero token overlap with source = total degeneration
+        # Abstractive models paraphrase, but 0% overlap means NONE of the source
+        # content appears in ANY form. Threshold of 5% is very generous.
+        if len(summary_tokens) >= 12:
+            overlap = len(set(summary_tokens).intersection(source_tokens)) / max(1, len(set(summary_tokens)))
+            if overlap < 0.05:
+                logger.warning(f"Generated text has near-zero source overlap ({overlap:.2%})")
+                return True
+
+        # CHECK 3: Repeated 4-gram windows (lowered threshold from 20% to 15%)
         windows = [" ".join(summary_tokens[i:i + 4]) for i in range(max(0, len(summary_tokens) - 3))]
         if windows:
             repeated_windows = len(windows) - len(set(windows))
-            if repeated_windows / max(1, len(windows)) > 0.20:
+            if repeated_windows / max(1, len(windows)) > 0.15:
                 logger.warning("Generated text contains excessive repeated phrases")
                 return True
 
+        # CHECK 4: Single-token repetition (any token appearing > 15% of output)
+        if len(summary_tokens) >= 10:
+            token_counts = Counter(summary_tokens)
+            most_common_token, most_common_count = token_counts.most_common(1)[0]
+            if most_common_count / len(summary_tokens) > 0.15:
+                logger.warning(
+                    f"Generated text has dominant repeated token "
+                    f"('{most_common_token}' appears {most_common_count}/{len(summary_tokens)} times)"
+                )
+                return True
+
+        # CHECK 5: Known degeneration tokens (existing)
         odd_tokens = re.findall(r"\b(?:me|re|noo|Horne|Photoshop|Wisconsin|apache)\b", text, re.IGNORECASE)
         if len(odd_tokens) >= 5 and not re.search(r"\b(?:Horne|Photoshop|Wisconsin|apache)\b", source_text, re.IGNORECASE):
             logger.warning("Generated text contains known model degeneration tokens")
@@ -651,7 +707,7 @@ class SummarizerService:
         Identifies common hallucination signatures:
         - URLs or email addresses not in source material
         - Repeated nonsense patterns (e.g., 'Back to the page')
-        - Sudden topic shifts with low semantic coherence
+        - Low semantic similarity with source material (not token overlap)
         
         Args:
             text: Generated summary text to check
@@ -682,18 +738,39 @@ class SummarizerService:
                 logger.warning(f"Hallucination detected: Matched pattern '{pattern}'")
                 return True
         
-        # Pattern 3: Check for extremely low token overlap with source
-        # (this catches when model goes off-topic completely)
-        summary_tokens = set(re.findall(r"\w+", text.lower()))
-        source_tokens = set(re.findall(r"\w+", " ".join(source_sentences).lower()))
-        
-        if len(summary_tokens) >= 15:  # Check if summary is non-trivial (>= 15 tokens)
-            overlap = summary_tokens.intersection(source_tokens)
-            overlap_ratio = len(overlap) / len(summary_tokens) if summary_tokens else 0
+        # Pattern 3: Check paraphrase/abstractive faithfulness using BERTScore
+        # More forgiving for abstractive rewording than raw token overlap or sentence similarity
+        try:
+            from bert_score import score
             
-            if overlap_ratio < 0.35:  # Less than 35% token overlap = likely hallucination
-                logger.warning(f"Hallucination detected: Low token overlap ({overlap_ratio:.2%})")
+            valid_sources = [s.strip() for s in source_sentences if s.strip()]
+            if not valid_sources:
+                return False
+            
+            # BERTScore computes token-level contextual similarity
+            # Better at handling paraphrasing and abstractive rewording
+            # Use average/joined reference for comparison
+            reference_text = " ".join(valid_sources)
+            
+            # score() returns (Precision, Recall, F1) for each candidate
+            # We pass single candidate and reference
+            P, R, F1 = score([text], [reference_text], lang="en", verbose=False, device="cuda" if torch.cuda.is_available() else "cpu")
+            
+            bert_score_f1 = F1[0].item() if hasattr(F1[0], 'item') else float(F1[0])
+            
+            logger.info(f"BERTScore F1 with source: {bert_score_f1:.3f} (P={P[0]:.3f}, R={R[0]:.3f})")
+            
+            # BERTScore F1 < 0.75 indicates poor alignment with source
+            # Raised from 0.50: contextual embeddings have high baselines, so even
+            # gibberish can score 0.6-0.7. Good Pegasus summaries score 0.85+.
+            if bert_score_f1 < 0.75:
+                logger.warning(f"Hallucination detected: Low BERTScore F1 ({bert_score_f1:.3f})")
                 return True
+                
+        except Exception as e:
+            logger.warning(f"Error computing BERTScore: {str(e)}; skipping hallucination check")
+            # Gracefully degrade: don't flag as hallucination if scoring fails
+            return False
         
         return False
 
@@ -762,13 +839,30 @@ class SummarizerService:
         summary_tokens = set(re.findall(r"\w+", summary.lower()))
         source_tokens = set(re.findall(r"\w+", " ".join(source_sentences).lower()))
         token_overlap = len(summary_tokens.intersection(source_tokens)) / len(summary_tokens) if summary_tokens else 0
+
+        # HARD FAIL: Zero or near-zero overlap is always a rejection
+        # No legitimate abstractive summary has <5% vocabulary overlap with its source
+        if token_overlap < 0.05:
+            logger.warning(f"Synthesis has near-zero token overlap ({token_overlap:.2%}); auto-rejecting")
+            return {
+                "abstractive_summary": summary,
+                "key_themes": [],
+                "source_mapping": {},
+                "quality_score": 0.0,
+                "has_hallucination": True,
+                "token_overlap": token_overlap,
+                "length_ok": length_ok,
+                "coherence_ok": False
+            }
+
         coherence_ok = token_overlap > 0.40  # 40% overlap threshold for coherence
         
         # QUALITY CHECK 3: Overall quality score (0-1)
+        # Weights: hallucination detection is heaviest (40%), coherence next (35%), length last (25%)
         quality_score = 0.0
-        quality_score += 0.4 if length_ok else 0.1  # Length contributes 40% of quality
-        quality_score += 0.4 if coherence_ok else 0.1  # Coherence contributes 40%
-        quality_score += 0.2 if not has_hallucination else 0.0  # Hallucination-free contributes 20%
+        quality_score += 0.25 if length_ok else 0.1   # Length contributes 25% of quality
+        quality_score += 0.35 if coherence_ok else 0.05  # Coherence contributes 35%
+        quality_score += 0.40 if not has_hallucination else 0.0  # Hallucination-free contributes 40%
         
         logger.info(
             f"Synthesis quality: score={quality_score:.2f}, "
