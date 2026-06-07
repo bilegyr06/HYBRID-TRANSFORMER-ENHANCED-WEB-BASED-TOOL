@@ -2,6 +2,7 @@
 import shutil
 import importlib
 import os
+from uuid import uuid4
 from typing import List
 from pydantic import BaseModel
 import logging
@@ -96,7 +97,10 @@ async def upload_documents(
                 detail="Invalid filename: path traversal not allowed"
             )
 
-        file_path = settings.UPLOAD_DIR / sanitized_filename
+        suffix = os.path.splitext(sanitized_filename)[1].lower()
+        stem = os.path.splitext(sanitized_filename)[0]
+        stored_filename = f"{stem}_{uuid4().hex[:12]}{suffix}"
+        file_path = settings.UPLOAD_DIR / stored_filename
 
         # Save file
         with file_path.open("wb") as buffer:
@@ -113,11 +117,12 @@ async def upload_documents(
             else:  # .txt
                 content_preview = file_path.read_text(encoding="utf-8", errors="ignore")
         except Exception as e:
-            logger.warning(f"Failed to extract preview for {sanitized_filename}: {e}")
+            logger.warning(f"Failed to extract preview for {stored_filename}: {e}")
             content_preview = "[Extraction failed]"
 
         uploaded_files.append({
-            "filename": file.filename,
+            "filename": stored_filename,
+            "original_filename": sanitized_filename,
             "size_kb": round(file_path.stat().st_size / 1024, 2),
             "preview": content_preview[:500] + "..." if len(content_preview) > 500 else content_preview
         })
@@ -156,7 +161,7 @@ async def process_documents(request: ProcessRequest):
             "results": [
                 {
                     "filename": result.filename,
-                    "original_text": "",  # Not included in AnalysisResponse, set empty
+                    "original_text": result.original_text or "",
                     "extractive": result.extractive,
                     "abstractive_summary": result.abstractive_summary,
                     "key_themes": result.key_themes,

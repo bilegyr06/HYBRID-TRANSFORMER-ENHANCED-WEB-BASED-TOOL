@@ -131,7 +131,30 @@ class TextRankService:
     def _preprocess_and_tokenize(self, text: str) -> List[str]:
         """Clean and tokenize text into sentences."""
         clean_text = re.sub(r'\s+', ' ', text).strip()
-        return sent_tokenize(clean_text)
+        if not clean_text:
+            return []
+
+        protected_period = "<prd>"
+        abbreviations = [
+            "et al.", "Fig.", "Figs.", "Eq.", "Eqs.", "Sec.", "Secs.", "Ref.", "Refs.",
+            "Dr.", "Prof.", "Mr.", "Mrs.", "Ms.", "e.g.", "i.e.", "vs.", "cf.",
+        ]
+
+        protected_text = clean_text
+        for abbreviation in abbreviations:
+            protected_text = re.sub(
+                re.escape(abbreviation),
+                abbreviation.replace(".", protected_period),
+                protected_text,
+                flags=re.IGNORECASE,
+            )
+
+        sentences = sent_tokenize(protected_text)
+        return [
+            sentence.replace(protected_period, ".").strip()
+            for sentence in sentences
+            if sentence.strip()
+        ]
 
     # ========== Vectorization & Similarity ==========
     def _compute_tfidf_matrix(self, sentences: List[str]):
@@ -302,8 +325,12 @@ class TextRankService:
         
         # Very long sentences get mild penalty (Gaussian over deviations from median)
         if len(lengths) > 1:
-            median_length = np.median(lengths[~short_mask])
-            std_length = np.std(lengths[~short_mask]) + 1e-6  # Avoid division by zero
+            normal_lengths = lengths[~short_mask]
+            if len(normal_lengths) == 0:
+                return penalty
+
+            median_length = np.median(normal_lengths)
+            std_length = np.std(normal_lengths) + 1e-6  # Avoid division by zero
             # Gaussian penalty over standardized length
             normalized_lengths = (lengths - median_length) / std_length
             long_penalty = np.exp(-0.1 * normalized_lengths ** 2)
@@ -465,6 +492,7 @@ class TextRankService:
                 "score": round(item["score"], 6),
                 "rank": rank,
                 "original_position": item["original_position"],
+                "index": item.get("index", item["original_position"]),
                 "components": item.get("components", {})  # Individual bias components
             })
         
@@ -498,6 +526,7 @@ class TextRankService:
                 "score": 1.0,
                 "rank": 1,
                 "original_position": 0,
+                "index": 0,
                 "components": {"note": "Text too short for extraction"}
             }]
         
@@ -509,7 +538,18 @@ class TextRankService:
                 "score": 0.0,
                 "rank": 1,
                 "original_position": 0,
+                "index": 0,
                 "components": {"note": "Tokenization failed"}
+            }]
+
+        if len(sentences) < 2:
+            return [{
+                "sentence": sentences[0],
+                "score": 1.0,
+                "rank": 1,
+                "original_position": 0,
+                "index": 0,
+                "components": {"note": "Single sentence returned without graph ranking"}
             }]
         
         # Compute TF-IDF and similarity

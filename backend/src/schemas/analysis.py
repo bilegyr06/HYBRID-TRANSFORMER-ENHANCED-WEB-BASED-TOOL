@@ -48,6 +48,7 @@ class AnalysisRequest(BaseModel):
 
 class AnalysisDocumentResult(BaseModel):
     filename: str
+    original_text: str = ""
     extractive: Dict[str, object]
     abstractive_summary: str
     key_themes: List[str] = Field(default_factory=list)

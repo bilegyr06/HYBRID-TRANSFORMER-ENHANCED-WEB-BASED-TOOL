@@ -7,7 +7,7 @@ import UploadHeader from '../components/upload/UploadHeader';
 import UploadInfoPanel from '../components/upload/UploadInfoPanel';
 import { API_BASE_URL } from '../lib/config';
 import { isSupportedDocument } from '../lib/files';
-import type { ProcessResponse } from '../types';
+import type { ProcessResponse, UploadResponse } from '../types';
 
 interface UploadPageProps {
   onProcessComplete: (data: ProcessResponse) => void;
@@ -65,11 +65,14 @@ export default function UploadPage({ onProcessComplete }: UploadPageProps) {
         throw new Error('Upload failed');
       }
 
+      const uploadData: UploadResponse = await uploadResponse.json();
+      const uploadedFilenames = uploadData.details.map((detail) => detail.filename);
+
       const processResponse = await fetch(`${API_BASE_URL}/process`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          filenames: files.map(f => f.name),
+          filenames: uploadedFilenames,
         }),
       });
 

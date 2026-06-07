@@ -1,5 +1,6 @@
 export interface UploadDetail {
   filename: string;
+  original_filename?: string;
   size_kb: number;
   preview: string;
 }

@@ -123,6 +123,7 @@ def _build_result(
 
     return AnalysisDocumentResult(
         filename=filename,
+        original_text=text,
         extractive={"key_sentences": key_sentences, "total_extracted": len(key_sentences)},
         abstractive_summary=abstractive_summary,
         key_themes=key_themes,

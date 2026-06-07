@@ -1,4 +1,4 @@
-from transformers import AutoTokenizer, PegasusConfig, PegasusForConditionalGeneration  # type: ignore
+from transformers import AutoTokenizer, PegasusForConditionalGeneration  # type: ignore
 from typing import List, Dict, Any, Optional
 import logging
 import torch  # type: ignore
@@ -45,16 +45,6 @@ class SummarizerService:
                 use_force_download = settings.HF_MODEL_FORCE_DOWNLOAD if force_download is None else force_download
                 hub_token = settings.HF_TOKEN or None
 
-                # Explicit Pegasus config wiring to control embedding tie behavior.
-                pegasus_config = PegasusConfig.from_pretrained(
-                    settings.MODEL_NAME,
-                    cache_dir=str(cache_dir),
-                    force_download=use_force_download,
-                    local_files_only=settings.HF_MODEL_LOCAL_FILES_ONLY,
-                    token=hub_token,
-                    tie_word_embeddings=settings.PEGASUS_TIE_WORD_EMBEDDINGS,
-                )
-
                 tokenizer = AutoTokenizer.from_pretrained(
                     settings.MODEL_NAME,
                     cache_dir=str(cache_dir),
@@ -64,7 +54,6 @@ class SummarizerService:
                 )
                 model = PegasusForConditionalGeneration.from_pretrained(
                     settings.MODEL_NAME,
-                    config=pegasus_config,
                     cache_dir=str(cache_dir),
                     force_download=use_force_download,
                     local_files_only=settings.HF_MODEL_LOCAL_FILES_ONLY,
@@ -117,17 +106,19 @@ class SummarizerService:
         device = next(model.parameters()).device
         inputs = inputs.to(device)
         
-        # Generate summary
+        safe_min_length = min(min_length, max(1, max_length - 1))
+
+        # Beam search is more stable for PEGASUS on short, dense extractive inputs.
         outputs = model.generate(
             inputs,
             max_length=max_length,
-            min_length=min_length,
+            min_length=safe_min_length,
             num_beams=NUM_BEAMS,
-            early_stopping=True,
             do_sample=False,
+            length_penalty=2.0,
             no_repeat_ngram_size=3,
             repetition_penalty=1.2,
-            length_penalty=0.8,
+            early_stopping=True,
         )
         
         # Decode output
@@ -175,8 +166,12 @@ class SummarizerService:
         
         # Validate key_sentences structure
         try:
+            ordered_sentences = sorted(
+                key_sentences,
+                key=lambda s: s.get("index", s.get("original_position", 0))
+            )
             combined_text = " ".join(
-                [s.get("sentence", "") for s in key_sentences if s.get("sentence")]
+                [s.get("sentence", "") for s in ordered_sentences if s.get("sentence")]
             )
             if not combined_text.strip():
                 logger.warning("No valid sentences found in key_sentences")
@@ -188,20 +183,13 @@ class SummarizerService:
         # Summarize only the source text for the per-document path.
         prompt = re.sub(r"\s+", " ", combined_text).strip()
         
-        # Truncate if too long; keep a buffer under the model's input limit.
-        if len(prompt) > MAX_PROMPT_LENGTH:
-            logger.debug(
-                f"Prompt truncated from {len(prompt)} to {MAX_PROMPT_LENGTH} characters"
-            )
-            prompt = prompt[:MAX_PROMPT_LENGTH] + "..."
-        
         try:
             logger.debug(f"Generating summary (max_length={max_length})...")
             result = self._generate(prompt, max_length, MIN_SUMMARY_LENGTH)
             if self._is_low_quality_generation(result, [prompt]):
                 logger.warning("Generated per-document summary failed quality checks; using extractive fallback")
                 result = self._build_extractive_fallback_summary(
-                    [s.get("sentence", "") for s in key_sentences if s.get("sentence")],
+                    [s.get("sentence", "") for s in ordered_sentences if s.get("sentence")],
                     max_words=180,
                 )
             logger.info(f"Successfully generated summary ({len(result)} characters)")
@@ -286,13 +274,6 @@ class SummarizerService:
                 f"KEY INSIGHTS:\n{key_sentences_text}"
             )
             
-            # Truncate if too long
-            if len(synthesis_prompt) > MAX_PROMPT_LENGTH:
-                logger.debug(
-                    f"Synthesis prompt truncated from {len(synthesis_prompt)} to {MAX_PROMPT_LENGTH} characters"
-                )
-                synthesis_prompt = synthesis_prompt[:MAX_PROMPT_LENGTH] + "..."
-            
             logger.debug(f"Generating synthesis from {len(results)} documents (max_length={max_length})...")
             result = self._generate(synthesis_prompt, max_length, MIN_SUMMARY_LENGTH)
             logger.info(f"Successfully generated synthesis ({len(result)} characters)")
@@ -360,7 +341,15 @@ class SummarizerService:
         provenance_map = {}  # Maps index to {doc_id, sentence_id, original_score}
         unique_docs = set()
         
-        for idx, sent_obj in enumerate(extractive_sentences):
+        ordered_extractive_sentences = sorted(
+            extractive_sentences,
+            key=lambda s: (
+                str(s.get("doc_id", "")),
+                s.get("position_in_doc", s.get("index", s.get("sentence_id", 0)))
+            )
+        )
+
+        for idx, sent_obj in enumerate(ordered_extractive_sentences):
             if not isinstance(sent_obj, dict):
                 raise ValueError(f"extractive_sentences[{idx}] must be a dict")
             
@@ -381,8 +370,16 @@ class SummarizerService:
             }
             unique_docs.add(doc_id)
         
+        # Adjust target lengths dynamically based on input size to prevent forced generation loops
+        input_word_count = sum(len(sent.split()) for sent in sentence_texts)
+        effective_min_length = min(min_length, max(20, int(input_word_count * 0.25)))
+        effective_max_length = min(max_length, max(40, int(input_word_count * 0.7)))
+        effective_target_length = min(target_length, max(35, int(input_word_count * 0.5)))
+        if effective_max_length <= effective_min_length:
+            effective_max_length = effective_min_length + 10
+
         # Build synthesis prompt
-        synthesis_prompt = self._build_synthesis_prompt(sentence_texts, target_length)
+        synthesis_prompt = self._build_synthesis_prompt(sentence_texts, effective_target_length)
         
         # Generate synthesis using model
         try:
@@ -390,8 +387,8 @@ class SummarizerService:
             # Token count is ~1.3x word count for English
             synthesis_raw = self._generate(
                 synthesis_prompt,
-                max_length=int(max_length * 1.3),
-                min_length=int(min_length * 1.2)
+                max_length=int(effective_max_length * 1.3),
+                min_length=int(effective_min_length * 1.1)
             )
             logger.info(f"Generated synthesis: {len(synthesis_raw)} characters")
         except Exception as e:
@@ -402,8 +399,8 @@ class SummarizerService:
         structured_output = self._parse_synthesis_output(
             synthesis_raw,
             provenance_map,
-            min_length,
-            max_length,
+            effective_min_length,
+            effective_max_length,
             source_sentences=sentence_texts
         )
 
